@@ -47,10 +47,22 @@ namespace dae
 				{
 					const float t1{ (-b + sqrtDiscriminant) / 2.0f * a };
 					const float t2{ (-b - sqrtDiscriminant) / 2.0f * a };
-					rayDistance = t1 < t2 ? t1 : t2;
+					rayDistance = (t1 < t2 && t1 >= 0) ? t1 : t2;
 				}
 
+				// If the raydistance is less then zero, nothing is visible
+				if(rayDistance < 0)
+				{ 
+					return false;
+				}
+				
+				// Calculate the normal of the hit point
+				const Vector3 hitPoint{ ray.origin + ray.direction * rayDistance };
+				const Vector3 hitNormal{ sphere.origin, hitPoint };
+
 				// Set the hit record to the calculated information
+				hitRecord.normal = hitNormal.Normalized();
+				hitRecord.origin = ray.origin;
 				hitRecord.didHit = true;
 				hitRecord.materialIndex = sphere.materialIndex;
 				hitRecord.t = rayDistance;
@@ -60,8 +72,8 @@ namespace dae
 #pragma endregion
 
 #pragma region Sphere HitTest Geometric
-			// Geometric
-			
+			//// Geometric
+			//
 			//// Calculate the vector from the ray to the sphere
 			//const Vector3 raySphereVector{ sphere.origin - ray.origin };
 			//// Project the vector from ray to the sphere on the ray
@@ -97,10 +109,22 @@ namespace dae
 			//		const float rayHitDistanceInCirlce{ sqrt(rayHitDistanceInCirlceSqr) };
 			//		const float t1{ projectedRaySphereDistance - rayHitDistanceInCirlce };
 			//		const float t2{ projectedRaySphereDistance + rayHitDistanceInCirlce };
-			//		rayDistance = t1 < t2 ? t1 : t2;
+			//		rayDistance = (t1 < t2&& t1 >= 0) ? t1 : t2;
 			//	}
-
+			//
+			//	// If the raydistance is less then zero, nothing is visible
+			//	if (rayDistance < 0)
+			//	{
+			//		return false;
+			//	}
+			//	
+			//	// Calculate the normal of the hit point
+			//	const Vector3 hitPoint{ ray.origin + ray.direction * rayDistance };
+			//	const Vector3 hitNormal{ sphere.origin, hitPoint };
+			//
 			//	// Set the hit record to the calculated information
+			//	hitRecord.normal = hitNormal.Normalized();
+			//	hitRecord.origin = ray.origin;
 			//	hitRecord.didHit = true;
 			//	hitRecord.materialIndex = sphere.materialIndex;
 			//	hitRecord.t = rayDistance;
@@ -134,6 +158,9 @@ namespace dae
 			// Set the hit record to the calculated information
 			if (!ignoreHitRecord)
 			{
+				// Set the hit record to the calculated information
+				hitRecord.normal = plane.normal;
+				hitRecord.origin = ray.origin;
 				hitRecord.t = t;
 				hitRecord.didHit = true;
 				hitRecord.materialIndex = plane.materialIndex;
