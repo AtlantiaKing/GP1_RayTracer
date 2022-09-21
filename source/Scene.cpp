@@ -28,8 +28,45 @@ namespace dae {
 
 	void dae::Scene::GetClosestHit(const Ray& ray, HitRecord& closestHit) const
 	{
-		//todo W1
-		assert(false && "No Implemented Yet!");
+		// For each sphere
+		for (const Sphere& sphere : m_SphereGeometries)
+		{
+			// If the ray hits a sphere, check if the sphere is closer then the previous hit, else continue
+			HitRecord tempHit{ };
+			if (GeometryUtils::HitTest_Sphere(sphere, ray, tempHit))
+			{
+				// If nothing has been hit yet, set closestHit to the current tempHit
+				// Else only set closestHit if the current hit point is closer that the previous hit point
+				if (!closestHit.didHit)
+				{
+					closestHit = tempHit;
+				}
+				else if (closestHit.t > tempHit.t)
+				{
+					closestHit = tempHit;
+				}
+			}
+		}
+
+		// For each plane
+		for (const Plane& plane : m_PlaneGeometries)
+		{
+			// If the ray hits a plane, check if the plane is closer then the previous hit, else continue
+			HitRecord tempHit{ };
+			if (GeometryUtils::HitTest_Plane(plane, ray, tempHit))
+			{
+				// If nothing has been hit yet, set closestHit to the current tempHit
+				// Else only set closestHit if the current hit point is closer that the previous hit point
+				if (!closestHit.didHit)
+				{
+					closestHit = tempHit;
+				}
+				else if (closestHit.t > tempHit.t)
+				{
+					closestHit = tempHit;
+				}
+			}
+		}
 	}
 
 	bool Scene::DoesHit(const Ray& ray) const

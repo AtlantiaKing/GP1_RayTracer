@@ -12,9 +12,102 @@ namespace dae
 		//SPHERE HIT-TESTS
 		inline bool HitTest_Sphere(const Sphere& sphere, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-			//todo W1
-			assert(false && "No Implemented Yet!");
-			return false;
+#pragma region Sphere HitTest Analytic
+			// Analytic
+
+			// Calculate a vector from the origin of the 
+			const Vector3 raySphereVector{ ray.origin - sphere.origin };
+			// Calculate all parts of the quadratic formula
+			const float a{ Vector3::Dot(ray.direction, ray.direction) };
+			const float b{ Vector3::Dot(2.0f * ray.direction, raySphereVector) };
+			const float c{ Vector3::Dot(raySphereVector, raySphereVector) - Square(sphere.radius) };
+
+			// Calculate the discriminant of the quadratic formulae
+			const float discriminant{ Square(b) - 4.0f * a * c };
+
+			// If discriminant is negative, nothing has been hit
+			if (discriminant < 0)
+			{
+				return false;
+			}
+
+			if (!ignoreHitRecord)
+			{
+				const float sqrtDiscriminant{ sqrtf(discriminant) };
+
+				// Calculate the distance from the ray origin to the ray hit point
+				float rayDistance{ };
+				// If discriminant == 0, only one hit point exists
+				// Else, calculate both hit point distances and use the smallest
+				if (discriminant < FLT_EPSILON)
+				{
+					rayDistance = -b / 2.0f * a;
+				}
+				else
+				{
+					const float t1{ (-b + sqrtDiscriminant) / 2.0f * a };
+					const float t2{ (-b - sqrtDiscriminant) / 2.0f * a };
+					rayDistance = t1 < t2 ? t1 : t2;
+				}
+
+				// Set the hit record to the calculated information
+				hitRecord.didHit = true;
+				hitRecord.materialIndex = sphere.materialIndex;
+				hitRecord.t = rayDistance;
+			}
+
+			return true;
+#pragma endregion
+
+#pragma region Sphere HitTest Geometric
+			// Geometric
+			
+			//// Calculate the vector from the ray to the sphere
+			//const Vector3 raySphereVector{ sphere.origin - ray.origin };
+			//// Project the vector from ray to the sphere on the ray
+			//const Vector3 projectedRaySphereVector{ Vector3::Project(raySphereVector, ray.direction) };
+			//// Calculate the distance between the origin of the sphere and the projected origin of the sphere on the ray
+			//const Vector3 sphereRayDistanceVector{ raySphereVector - projectedRaySphereVector };
+			//const float sphereRayDistanceSqr{ sphereRayDistanceVector.SqrMagnitude() };
+			//// Calculate the distance between the projected origin of the sphere and the hit point on the circle
+			//const float rayHitDistanceInCirlceSqr{ Square(sphere.radius) - sphereRayDistanceSqr };
+
+			//// If squared distance is less then zero, nothing is hit
+			//if (rayHitDistanceInCirlceSqr < 0)
+			//{
+			//	return false;
+			//}
+
+			//if (!ignoreHitRecord)
+			//{
+			//	// Calculate the distance from the ray origin to the ray hit point
+
+			//	// Calculate the distance from the projected origin of the circle to the ray origin
+			//	const float projectedRaySphereDistance{ projectedRaySphereVector.Magnitude() };
+
+			//	float rayDistance{ };
+			//	// If the distance between the hit point and the projected origin is zero, the projected origin IS the hit point
+			//	// Else, calculate both hit point distances and use the smallest
+			//	if (rayHitDistanceInCirlceSqr < FLT_EPSILON)
+			//	{
+			//		rayDistance = projectedRaySphereDistance;
+			//	}
+			//	else
+			//	{
+			//		const float rayHitDistanceInCirlce{ sqrt(rayHitDistanceInCirlceSqr) };
+			//		const float t1{ projectedRaySphereDistance - rayHitDistanceInCirlce };
+			//		const float t2{ projectedRaySphereDistance + rayHitDistanceInCirlce };
+			//		rayDistance = t1 < t2 ? t1 : t2;
+			//	}
+
+			//	// Set the hit record to the calculated information
+			//	hitRecord.didHit = true;
+			//	hitRecord.materialIndex = sphere.materialIndex;
+			//	hitRecord.t = rayDistance;
+			//}
+
+			//return true;
+#pragma endregion
 		}
 
 		inline bool HitTest_Sphere(const Sphere& sphere, const Ray& ray)
@@ -27,9 +120,26 @@ namespace dae
 		//PLANE HIT-TESTS
 		inline bool HitTest_Plane(const Plane& plane, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-			//todo W1
-			assert(false && "No Implemented Yet!");
-			return false;
+			// Calculate a vector on the plane
+			const Vector3 planeRayDistance{ plane.origin - ray.origin };
+			// Calculate the distance from ray hit
+			const float t = Vector3::Dot(planeRayDistance, plane.normal) / Vector3::Dot(ray.direction, plane.normal);
+
+			// If the distance is less then zero; the plane is not visible
+			if (t < 0)
+			{
+				return false;
+			}
+
+			// Set the hit record to the calculated information
+			if (!ignoreHitRecord)
+			{
+				hitRecord.t = t;
+				hitRecord.didHit = true;
+				hitRecord.materialIndex = plane.materialIndex;
+			}
+
+			return true;
 		}
 
 		inline bool HitTest_Plane(const Plane& plane, const Ray& ray)

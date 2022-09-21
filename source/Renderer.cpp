@@ -27,15 +27,35 @@ void Renderer::Render(Scene* pScene) const
 	auto& materials = pScene->GetMaterials();
 	auto& lights = pScene->GetLights();
 
+	// For each pixel
 	for (int px{}; px < m_Width; ++px)
 	{
 		for (int py{}; py < m_Height; ++py)
 		{
-			float gradient = px / static_cast<float>(m_Width);
-			gradient += py / static_cast<float>(m_Width);
-			gradient /= 2.0f;
+			// Calculate the raster cordinates in camera space
+			const float cx{ (2.0f * (px + 0.5f) / m_Width - 1.0f) * m_Width / m_Height };
+			const float cy{ 1.0f - 2.0f * (py + 0.5f) / m_Height };
 
-			ColorRGB finalColor{ gradient, gradient, gradient };
+			// Create the direction for the ray from the camera to the raster
+			Vector3 rayDirection{ cx, cy, 1.0f };
+			// Normalize the ray direction
+			rayDirection.Normalize();
+
+			// Create a ray from the camera to the raster
+			Ray viewRay{ { 0.0f, 0.0f, 0.0f }, rayDirection };
+
+			// Initialize the pixel color (default = black)
+			ColorRGB finalColor{ };
+
+			// Find the closest hit in the scene to the camera and save the hit information
+			HitRecord closestHit{ };
+			pScene->GetClosestHit(viewRay, closestHit);
+
+			// If the ray hits anything, set finalColor to the hit material color
+			if (closestHit.didHit)
+			{
+				finalColor = materials[closestHit.materialIndex]->Shade();
+			}
 
 			//Update Color in Buffer
 			finalColor.MaxToOne();
