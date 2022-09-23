@@ -35,13 +35,8 @@ namespace dae {
 			HitRecord tempHit{ };
 			if (GeometryUtils::HitTest_Sphere(sphere, ray, tempHit))
 			{
-				// If nothing has been hit yet, set closestHit to the current tempHit
-				// Else only set closestHit if the current hit point is closer that the previous hit point
-				if (!closestHit.didHit)
-				{
-					closestHit = tempHit;
-				}
-				else if (closestHit.t > tempHit.t)
+				// If the current hit point is closer that the previous hit point, overwrite
+				if (closestHit.t > tempHit.t)
 				{
 					closestHit = tempHit;
 				}
@@ -57,11 +52,7 @@ namespace dae {
 			{
 				// If nothing has been hit yet, set closestHit to the current tempHit
 				// Else only set closestHit if the current hit point is closer that the previous hit point
-				if (!closestHit.didHit)
-				{
-					closestHit = tempHit;
-				}
-				else if (closestHit.t > tempHit.t)
+				if (closestHit.t > tempHit.t)
 				{
 					closestHit = tempHit;
 				}
