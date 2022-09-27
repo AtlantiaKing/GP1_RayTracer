@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Vector3.h"
 
 struct SDL_Window;
 struct SDL_Surface;
@@ -31,5 +32,8 @@ namespace dae
 
 		int m_Width{};
 		int m_Height{};
+		float m_AspectRatio{};
+
+		bool DoesPointHaveShadow(Scene* pScene, const Vector3& point) const;
 	};
 }

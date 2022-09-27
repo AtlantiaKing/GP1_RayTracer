@@ -32,44 +32,45 @@ namespace dae
 				return false;
 			}
 
-			if (!ignoreHitRecord)
+			const float sqrtDiscriminant{ sqrtf(discriminant) };
+
+			// Calculate the distance from the ray origin to the ray hit point
+			float t{ };
+
+			// If discriminant == 0, only one hit point exists
+			// Else, calculate both hit point distances and use the smallest
+			if (discriminant < FLT_EPSILON)
 			{
-				const float sqrtDiscriminant{ sqrtf(discriminant) };
-
-				// Calculate the distance from the ray origin to the ray hit point
-				float t{ };
-
-				// If discriminant == 0, only one hit point exists
-				// Else, calculate both hit point distances and use the smallest
-				if (discriminant < FLT_EPSILON)
+				t = -b / (2.0f * a);
+			}
+			else
+			{
+				t = (-b - sqrtDiscriminant) / (2.0f * a);
+				if (t < ray.min || t > ray.max)
 				{
-					t = -b / (2.0f * a);
-				}
-				else
-				{
-					t = (-b - sqrtDiscriminant) / (2.0f * a);
+					t = (-b + sqrtDiscriminant) / (2.0f * a);
 					if (t < ray.min || t > ray.max)
 					{
-						t = (-b + sqrtDiscriminant) / (2.0f * a);
-						if (t < ray.min || t > ray.max)
-						{
-							// If both t values are less then zero, nothing is visible
-							return false;
-						}
+						// If both t values are less then ray.min or more then ray.max, nothing is visible
+						return false;
 					}
 				}
+			}
 
+			if (!ignoreHitRecord)
+			{
 				// Calculate the normal of the hit point
 				const Vector3 hitPoint{ ray.origin + ray.direction * t };
 				const Vector3 hitNormal{ sphere.origin, hitPoint };
 
 				// Set the hit record to the calculated information
 				hitRecord.normal = hitNormal.Normalized();
-				hitRecord.origin = ray.origin;
+				hitRecord.origin = hitPoint;
 				hitRecord.didHit = true;
 				hitRecord.materialIndex = sphere.materialIndex;
 				hitRecord.t = t;
 			}
+
 
 			return true;
 #pragma endregion
@@ -214,9 +215,17 @@ namespace dae
 		//Direction from target to light
 		inline Vector3 GetDirectionToLight(const Light& light, const Vector3 origin)
 		{
-			//todo W3
-			assert(false && "No Implemented Yet!");
-			return {};
+			switch (light.type)
+			{
+			case LightType::Directional:
+				return -light.direction;
+			case LightType::Point:
+				const Vector3 lightDirection{ light.origin - origin };
+				return lightDirection;
+			}
+
+			// If no light type is matched; return a zero Vector3
+			return Vector3{};
 		}
 
 		inline ColorRGB GetRadiance(const Light& light, const Vector3& target)

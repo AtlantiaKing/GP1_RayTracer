@@ -5,6 +5,7 @@
 
 #include "Math.h"
 #include "Timer.h"
+#include <iostream>
 
 namespace dae
 {
@@ -12,15 +13,16 @@ namespace dae
 	{
 		Camera() = default;
 
-		Camera(const Vector3& _origin, float _fovAngle):
-			origin{_origin},
-			fovAngle{_fovAngle}
+		Camera(const Vector3& _origin, float _fovAngle)
+			: origin{_origin}
 		{
+			SetFovAngle(_fovAngle);
 		}
 
 
 		Vector3 origin{};
-		float fovAngle{90.f};
+		float fovAngle{ 90.f };
+		float fovMultiplier{ 1.0f };
 
 		Vector3 forward{Vector3::UnitZ};
 		Vector3 up{Vector3::UnitY};
@@ -34,9 +36,17 @@ namespace dae
 
 		Matrix CalculateCameraToWorld()
 		{
-			//todo: W2
-			assert(false && "Not Implemented Yet");
-			return {};
+			right = Vector3::Cross(Vector3::UnitY, forward);
+			up = Vector3::Cross(forward, right);
+
+			Matrix worldMatrix
+			{
+				right,
+				up,
+				forward,
+				origin
+			};
+			return worldMatrix;
 		}
 
 		void Update(Timer* pTimer)
@@ -51,8 +61,53 @@ namespace dae
 			int mouseX{}, mouseY{};
 			const uint32_t mouseState = SDL_GetRelativeMouseState(&mouseX, &mouseY);
 
-			//todo: W2
-			//assert(false && "Not Implemented Yet");
+			const float keyboardMovementSpeed{ 10.0f };
+			const float mouseMovementSpeed{ 2.0f };
+			const float angularSpeed{ 10.0f * TO_RADIANS };
+
+			if (pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_Z])
+			{
+				origin += forward * keyboardMovementSpeed * deltaTime;
+			}
+			else if (pKeyboardState[SDL_SCANCODE_S])
+			{
+				origin -= forward * keyboardMovementSpeed * deltaTime;
+			}
+			
+			if (pKeyboardState[SDL_SCANCODE_Q] || pKeyboardState[SDL_SCANCODE_A])
+			{
+				origin -= right * keyboardMovementSpeed * deltaTime;
+			}
+			else if (pKeyboardState[SDL_SCANCODE_D])
+			{
+				origin += right * keyboardMovementSpeed * deltaTime;
+			}
+			
+			switch (mouseState)
+			{
+			case SDL_BUTTON_LEFT: // LEFT CLICK
+				origin.z -= mouseY * mouseMovementSpeed * deltaTime;
+				totalYaw += mouseX * angularSpeed * deltaTime;
+				break;
+			case SDL_BUTTON_X1: // RIGHT CLICK
+				totalYaw += mouseX * angularSpeed * deltaTime;
+				totalPitch -= mouseY * angularSpeed * deltaTime;
+				break;
+			case SDL_BUTTON_X2: // BOTH CLICK
+				origin.y -= mouseY * mouseMovementSpeed * deltaTime;
+				break;
+			}
+
+			Matrix rotationMatrix = Matrix::CreateRotation(totalPitch, totalYaw, 0.0f);
+
+			forward = rotationMatrix.TransformVector(Vector3::UnitZ);
+			forward.Normalize();
+		}
+
+		void SetFovAngle(float newFovAngle)
+		{
+			fovAngle = newFovAngle;
+			fovMultiplier = tanf(TO_RADIANS * newFovAngle / 2.0f);
 		}
 	};
 }
