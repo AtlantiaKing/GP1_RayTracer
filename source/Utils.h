@@ -17,6 +17,7 @@ namespace dae
 
 			// Calculate a vector from the origin of the 
 			const Vector3 raySphereVector{ ray.origin - sphere.origin };
+
 			// Calculate all parts of the quadratic formula
 			const float a{ Vector3::Dot(ray.direction, ray.direction) };
 			const float b{ Vector3::Dot(2.0f * ray.direction, raySphereVector) };
@@ -36,28 +37,30 @@ namespace dae
 				const float sqrtDiscriminant{ sqrtf(discriminant) };
 
 				// Calculate the distance from the ray origin to the ray hit point
-				float rayDistance{ };
+				float t{ };
+
 				// If discriminant == 0, only one hit point exists
 				// Else, calculate both hit point distances and use the smallest
 				if (discriminant < FLT_EPSILON)
 				{
-					rayDistance = -b / 2.0f * a;
+					t = -b / (2.0f * a);
 				}
 				else
 				{
-					const float t1{ (-b + sqrtDiscriminant) / 2.0f * a };
-					const float t2{ (-b - sqrtDiscriminant) / 2.0f * a };
-					rayDistance = (t1 < t2 && t1 >= 0) ? t1 : t2;
+					t = (-b - sqrtDiscriminant) / (2.0f * a);
+					if (t < ray.min || t > ray.max)
+					{
+						t = (-b + sqrtDiscriminant) / (2.0f * a);
+						if (t < ray.min || t > ray.max)
+						{
+							// If both t values are less then zero, nothing is visible
+							return false;
+						}
+					}
 				}
 
-				// If the raydistance is less then zero, nothing is visible
-				if(rayDistance < 0)
-				{ 
-					return false;
-				}
-				
 				// Calculate the normal of the hit point
-				const Vector3 hitPoint{ ray.origin + ray.direction * rayDistance };
+				const Vector3 hitPoint{ ray.origin + ray.direction * t };
 				const Vector3 hitNormal{ sphere.origin, hitPoint };
 
 				// Set the hit record to the calculated information
@@ -65,7 +68,7 @@ namespace dae
 				hitRecord.origin = ray.origin;
 				hitRecord.didHit = true;
 				hitRecord.materialIndex = sphere.materialIndex;
-				hitRecord.t = rayDistance;
+				hitRecord.t = t;
 			}
 
 			return true;
@@ -150,7 +153,7 @@ namespace dae
 			const float t = Vector3::Dot(planeRayDistance, plane.normal) / Vector3::Dot(ray.direction, plane.normal);
 
 			// If the distance is less then zero; the plane is not visible
-			if (t < 0)
+			if (t < ray.min || t > ray.max)
 			{
 				return false;
 			}
@@ -160,7 +163,7 @@ namespace dae
 			{
 				// Set the hit record to the calculated information
 				hitRecord.normal = plane.normal;
-				hitRecord.origin = ray.origin;
+				hitRecord.origin = ray.origin + ray.direction * t;
 				hitRecord.t = t;
 				hitRecord.didHit = true;
 				hitRecord.materialIndex = plane.materialIndex;
