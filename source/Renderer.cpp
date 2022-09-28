@@ -26,7 +26,8 @@ void Renderer::Render(Scene* pScene) const
 {
 	Camera& camera = pScene->GetCamera();
 	auto& materials = pScene->GetMaterials();
-	auto& lights = pScene->GetLights();
+
+	const Matrix cameraInWorldSpace{ camera.CalculateCameraToWorld() };
 
 	// For each pixel
 	for (int px{}; px < m_Width; ++px)
@@ -41,7 +42,7 @@ void Renderer::Render(Scene* pScene) const
 			const Vector3 rasterDirection{ cx, cy, 1.0f };
 
 			// Calculate and normalize the ray direction
-			Vector3 rayDirection{ camera.CalculateCameraToWorld().TransformVector(rasterDirection) };
+			Vector3 rayDirection{ cameraInWorldSpace.TransformVector(rasterDirection) };
 			//rayDirection.Normalize();
 
 			// Create a ray from the camera to the raster
@@ -57,15 +58,12 @@ void Renderer::Render(Scene* pScene) const
 			// If the ray hits anything, set finalColor to the hit material color
 			if (closestHit.didHit)
 			{
-				/*if (GeometryUtils::HitTest_Sphere(pScene->GetSphereGeometries()[0], viewRay))
-				{
-					int i = 0;
-				}*/
-
 				finalColor = materials[closestHit.materialIndex]->Shade();
 
 				// Offset the origin a really small amount to avoid hitting the object itself
-				const Vector3 shadePosition{ closestHit.origin + closestHit.normal * 0.01f };
+				const Vector3 shadePosition{ closestHit.origin + closestHit.normal * 0.001f };
+
+				// If an object is obstructing the line between the light and the hit point; draw a hard shadow
 				if (DoesPointHaveShadow(pScene, shadePosition))
 				{
 					finalColor *= 0.5f;
@@ -94,14 +92,22 @@ bool Renderer::SaveBufferToImage() const
 
 bool dae::Renderer::DoesPointHaveShadow(Scene* pScene, const Vector3& point) const
 {
+	// For every light
 	for (const Light& light : pScene->GetLights())
 	{
+		// Calculate the direction between the point to the light position
 		Vector3 lightDirection{ LightUtils::GetDirectionToLight(light, point) };
+
+		// Calculate the distance between the point and the light and normalize the light direction
 		const float lightDistance{ lightDirection.Normalize() };
 
+		// Create a ray from the point to the light position
 		Ray lightRay{ point, lightDirection };
+		// Set the max of the ray to the distance between the light and the point; 
+		//		otherwise the ray will always hit something (e.g. a infinite plane)
 		lightRay.max = lightDistance;
 
+		// Return wether the ray hits an object or not
 		if (pScene->DoesHit(lightRay))
 		{
 			return true;

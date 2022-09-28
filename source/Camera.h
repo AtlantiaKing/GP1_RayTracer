@@ -65,31 +65,19 @@ namespace dae
 			const float mouseMovementSpeed{ 2.0f };
 			const float angularSpeed{ 10.0f * TO_RADIANS };
 
-			if (pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_Z])
-			{
-				origin += forward * keyboardMovementSpeed * deltaTime;
-			}
-			else if (pKeyboardState[SDL_SCANCODE_S])
-			{
-				origin -= forward * keyboardMovementSpeed * deltaTime;
-			}
-			
-			if (pKeyboardState[SDL_SCANCODE_Q] || pKeyboardState[SDL_SCANCODE_A])
-			{
-				origin -= right * keyboardMovementSpeed * deltaTime;
-			}
-			else if (pKeyboardState[SDL_SCANCODE_D])
-			{
-				origin += right * keyboardMovementSpeed * deltaTime;
-			}
+			origin += (pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_Z]) * forward * keyboardMovementSpeed * deltaTime;
+			origin -= pKeyboardState[SDL_SCANCODE_S] * forward * keyboardMovementSpeed * deltaTime;
+
+			origin -= (pKeyboardState[SDL_SCANCODE_Q] || pKeyboardState[SDL_SCANCODE_A]) * right * keyboardMovementSpeed * deltaTime;
+			origin += pKeyboardState[SDL_SCANCODE_D] * right * keyboardMovementSpeed * deltaTime;
 			
 			switch (mouseState)
 			{
-			case SDL_BUTTON_LEFT: // LEFT CLICK
+			case SDL_BUTTON_LMASK: // LEFT CLICK
 				origin.z -= mouseY * mouseMovementSpeed * deltaTime;
 				totalYaw += mouseX * angularSpeed * deltaTime;
 				break;
-			case SDL_BUTTON_X1: // RIGHT CLICK
+			case SDL_BUTTON_RMASK: // RIGHT CLICK
 				totalYaw += mouseX * angularSpeed * deltaTime;
 				totalPitch -= mouseY * angularSpeed * deltaTime;
 				break;
