@@ -37,23 +37,15 @@ namespace dae
 			// Calculate the distance from the ray origin to the ray hit point
 			float t{ };
 
-			// If discriminant == 0, only one hit point exists
-			// Else, calculate both hit point distances and use the smallest
-			if (discriminant < FLT_EPSILON)
+			// Calculate both hit point distances and use the smallest
+			t = (-b - sqrtDiscriminant) / (2.0f * a);
+			if (t < ray.min || t > ray.max)
 			{
-				t = -b / (2.0f * a);
-			}
-			else
-			{
-				t = (-b - sqrtDiscriminant) / (2.0f * a);
+				t = (-b + sqrtDiscriminant) / (2.0f * a);
 				if (t < ray.min || t > ray.max)
 				{
-					t = (-b + sqrtDiscriminant) / (2.0f * a);
-					if (t < ray.min || t > ray.max)
-					{
-						// If both t values are less then ray.min or more then ray.max, nothing is visible
-						return false;
-					}
+					// If both t values are less then ray.min or more then ray.max, nothing is visible
+					return false;
 				}
 			}
 
@@ -70,7 +62,6 @@ namespace dae
 				hitRecord.materialIndex = sphere.materialIndex;
 				hitRecord.t = t;
 			}
-
 
 			return true;
 #pragma endregion

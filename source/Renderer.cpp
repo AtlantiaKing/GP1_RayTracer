@@ -42,7 +42,7 @@ void Renderer::Render(Scene* pScene) const
 
 			// Calculate and normalize the ray direction
 			Vector3 rayDirection{ camera.CalculateCameraToWorld().TransformVector(rasterDirection) };
-			rayDirection.Normalize();
+			//rayDirection.Normalize();
 
 			// Create a ray from the camera to the raster
 			const Ray viewRay{ camera.origin, rayDirection };
