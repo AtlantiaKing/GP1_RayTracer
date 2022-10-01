@@ -41,6 +41,9 @@ int main(int argc, char* args[])
 	if (!pWindow)
 		return 1;
 
+	// Lock cursor
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+
 	//Initialize "framework"
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
