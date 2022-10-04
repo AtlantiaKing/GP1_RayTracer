@@ -61,15 +61,61 @@ void Renderer::Render(Scene* pScene) const
 			if (closestHit.didHit)
 			{
 				// Set the color to the shading of the current object
-				finalColor = materials[closestHit.materialIndex]->Shade();
+				//finalColor = materials[closestHit.materialIndex]->Shade();
 
-				// Offset the origin a really small amount to avoid hitting the object itself
-				const Vector3 shadePosition{ closestHit.origin + closestHit.normal * 0.001f };
-
-				// If an object is obstructing the line between the light and the hit point; draw a hard shadow
-				if (DoesPointHaveShadow(pScene, shadePosition))
+				// For every light
+				for (const Light& light : pScene->GetLights())
 				{
-					finalColor *= 0.5f;
+					const Vector3 offsetPosition{ closestHit.origin + closestHit.normal * 0.001f };
+
+					// Calculate the direction between the point to the light position
+					Vector3 lightDirection{ LightUtils::GetDirectionToLight(light, offsetPosition) };
+
+					// Calculate the distance between the point and the light and normalize the light direction
+					const float lightDistance{ lightDirection.Normalize() };
+
+					const float lightNormalAngle{ Vector3::Dot(closestHit.normal, lightDirection) };
+
+					if (m_AreShadowsEnabled)
+					{
+						// Create a ray from the point to the light position
+						Ray lightRay{ offsetPosition, lightDirection };
+						// Set the max of the ray to the distance between the light and the point; 
+						//		otherwise the ray will always hit something (e.g. a infinite plane)
+						lightRay.max = lightDistance;
+
+						// Return wether the ray hits an object or not
+						if (pScene->DoesHit(lightRay))
+						{
+							finalColor *= 0.9f;
+
+							continue;
+						}
+					}
+
+					switch (m_CurrentLightingMode)
+					{
+					case LightingMode::ObservedArea:
+						if(lightNormalAngle > 0) finalColor += ColorRGB{ 1.0f, 1.0f, 1.0f } * lightNormalAngle;
+						break;
+					case LightingMode::Radiance:
+						finalColor += LightUtils::GetRadiance(light, closestHit.origin);
+						break;
+					case LightingMode::BRDF:
+					{
+						const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
+						finalColor += brdf;
+					}
+					break;
+					case LightingMode::Combined:
+					{
+						if (lightNormalAngle < 0) break;
+						const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
+						const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
+						finalColor += radiance * brdf * lightNormalAngle;
+					}
+					break;
+					}
 				}
 			}
 
@@ -91,6 +137,14 @@ void Renderer::Render(Scene* pScene) const
 bool Renderer::SaveBufferToImage() const
 {
 	return SDL_SaveBMP(m_pBuffer, "RayTracing_Buffer.bmp");
+}
+
+void dae::Renderer::CycleLightingMode()
+{
+	const int maxLightingValue = static_cast<int>(LightingMode::Combined) + 1;
+	int curLightingValue = static_cast<int>(m_CurrentLightingMode);
+
+	m_CurrentLightingMode = static_cast<LightingMode>(++curLightingValue % maxLightingValue);
 }
 
 bool dae::Renderer::DoesPointHaveShadow(Scene* pScene, const Vector3& point) const

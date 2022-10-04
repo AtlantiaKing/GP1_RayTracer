@@ -227,9 +227,22 @@ namespace dae
 
 		inline ColorRGB GetRadiance(const Light& light, const Vector3& target)
 		{
-			//todo W3
-			assert(false && "No Implemented Yet!");
-			return {};
+			ColorRGB lightEnergy{};
+
+			switch (light.type)
+			{
+			case LightType::Directional:
+				lightEnergy = light.color * light.intensity;
+				break;
+			case LightType::Point:
+			{
+				Vector3 targetToLight{ light.origin - target };
+				lightEnergy = light.color * (light.intensity / Vector3::Dot(targetToLight, targetToLight));
+			}
+				break;
+			}
+
+			return lightEnergy;
 		}
 	}
 
