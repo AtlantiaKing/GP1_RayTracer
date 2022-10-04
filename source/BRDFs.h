@@ -38,6 +38,8 @@ namespace dae
 			const Vector3 reflectedLightVector{ l - 2 * Vector3::Dot(n,l) * n };
 			float reflectedViewDot{ Vector3::Dot(reflectedLightVector, v) };
 
+			if (reflectedViewDot < 0) reflectedViewDot = 0;
+
 			return ColorRGB{1.0f, 1.0f, 1.0f} * ks * powf(reflectedViewDot, exp);
 		}
 
