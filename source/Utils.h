@@ -49,19 +49,22 @@ namespace dae
 				}
 			}
 
-			if (!ignoreHitRecord)
+			// If no hitrecord needs to be calculated, return true
+			if (ignoreHitRecord)
 			{
-				// Calculate the normal of the hit point
-				const Vector3 hitPoint{ ray.origin + ray.direction * t };
-				const Vector3 hitNormal{ sphere.origin, hitPoint };
-
-				// Set the hit record to the calculated information
-				hitRecord.normal = hitNormal.Normalized();
-				hitRecord.origin = hitPoint;
-				hitRecord.didHit = true;
-				hitRecord.materialIndex = sphere.materialIndex;
-				hitRecord.t = t;
+				return true;
 			}
+
+			// Calculate the normal of the hit point
+			const Vector3 hitPoint{ ray.origin + ray.direction * t };
+			const Vector3 hitNormal{ sphere.origin, hitPoint };
+
+			// Set the hit record to the calculated information
+			hitRecord.normal = hitNormal.Normalized();
+			hitRecord.origin = hitPoint;
+			hitRecord.didHit = true;
+			hitRecord.materialIndex = sphere.materialIndex;
+			hitRecord.t = t;
 
 			return true;
 #pragma endregion
@@ -141,6 +144,7 @@ namespace dae
 		{
 			// Calculate a vector on the plane
 			const Vector3 planeRayDistance{ plane.origin - ray.origin };
+
 			// Calculate the distance from ray hit
 			const float t = Vector3::Dot(planeRayDistance, plane.normal) / Vector3::Dot(ray.direction, plane.normal);
 
@@ -150,16 +154,18 @@ namespace dae
 				return false;
 			}
 
-			// Set the hit record to the calculated information
-			if (!ignoreHitRecord)
+			// If no hitrecord needs to be calculated, return true
+			if (ignoreHitRecord)
 			{
-				// Set the hit record to the calculated information
-				hitRecord.normal = plane.normal;
-				hitRecord.origin = ray.origin + ray.direction * t;
-				hitRecord.t = t;
-				hitRecord.didHit = true;
-				hitRecord.materialIndex = plane.materialIndex;
+				return true;
 			}
+
+			// Set the hit record to the calculated information
+			hitRecord.normal = plane.normal;
+			hitRecord.origin = ray.origin + ray.direction * t;
+			hitRecord.t = t;
+			hitRecord.didHit = true;
+			hitRecord.materialIndex = plane.materialIndex;
 
 			return true;
 		}

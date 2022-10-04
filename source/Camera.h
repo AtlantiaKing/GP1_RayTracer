@@ -100,7 +100,7 @@ namespace dae
 			switch (mouseState)
 			{
 			case SDL_BUTTON_LMASK: // LEFT CLICK
-				direction -= forward * mouseY * mouseMovementSpeed * deltaTime;
+				direction -= forward * (mouseY * mouseMovementSpeed * deltaTime);
 				totalYaw += mouseX * angularSpeed * deltaTime;
 				break;
 			case SDL_BUTTON_RMASK: // RIGHT CLICK
@@ -120,7 +120,7 @@ namespace dae
 			origin += direction;
 
 			// Calculate the rotation matrix with the new pitch and yaw
-			Matrix rotationMatrix = Matrix::CreateRotation(totalPitch, totalYaw, 0.0f);
+			Matrix rotationMatrix = Matrix::CreateRotationX(totalPitch) * Matrix::CreateRotationY(totalYaw);
 
 			// Calculate the new forward vector with the new pitch and yaw
 			forward = rotationMatrix.TransformVector(Vector3::UnitZ);
