@@ -21,7 +21,6 @@ namespace dae
 		static ColorRGB Lambert(const ColorRGB& kd, const ColorRGB& cd)
 		{
 			return cd * kd / PI;
-			return {};
 		}
 
 		/**
@@ -53,7 +52,6 @@ namespace dae
 		static ColorRGB FresnelFunction_Schlick(const Vector3& h, const Vector3& v, const ColorRGB& f0)
 		{
 			return ColorRGB::Lerp(f0, ColorRGB{ 1.0f, 1.0f,1.0f }, powf(1.0f - Vector3::Dot(h, v), 5.0f));
-			//return f0 + (ColorRGB{ 1.0f, 1.0f, 1.0f } - f0) * powf(1 - Vector3::Dot(h, v), 5.0f);
 		}
 
 		/**

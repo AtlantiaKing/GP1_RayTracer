@@ -113,8 +113,8 @@ namespace dae
 			const float normalDistribution{ BRDF::NormalDistribution_GGX(hitRecord.normal, halfVector, m_Roughness) };
 			const float geometryShadows{ BRDF::GeometryFunction_Smith(hitRecord.normal, v, l, m_Roughness) };
 
-			const float divisor{ (1.0f / (4.0f * Vector3::Dot(v, hitRecord.normal) * Vector3::Dot(l, hitRecord.normal))) };
-			const ColorRGB specular{ (fresnel * normalDistribution * geometryShadows) * divisor };
+			const float divisor{ 1.0f / (4.0f * Vector3::Dot(v, hitRecord.normal) * Vector3::Dot(l, hitRecord.normal)) };
+			const ColorRGB specular{ (fresnel * geometryShadows * normalDistribution) * divisor };
 
 			ColorRGB lambert{};
 			if (m_Metalness < FLT_EPSILON)

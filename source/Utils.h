@@ -232,12 +232,12 @@ namespace dae
 			switch (light.type)
 			{
 			case LightType::Directional:
-				lightEnergy = light.color * light.intensity;
+				lightEnergy = light.color * light.intensity;	// If light is directional, discard the distance from the light
 				break;
 			case LightType::Point:
 			{
-				Vector3 targetToLight{ light.origin - target };
-				lightEnergy = light.color * (light.intensity / Vector3::Dot(targetToLight, targetToLight));
+				Vector3 targetToLight{ GetDirectionToLight(light, target) };
+				lightEnergy = light.color * light.intensity / targetToLight.SqrMagnitude();	// If light is point, divide the intensity 
 			}
 				break;
 			}

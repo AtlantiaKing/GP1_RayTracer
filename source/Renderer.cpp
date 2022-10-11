@@ -84,32 +84,31 @@ void Renderer::Render(Scene* pScene) const
 						//		otherwise the ray will always hit something (e.g. a infinite plane)
 						lightRay.max = lightDistance;
 
-						// Return wether the ray hits an object or not
+						// If there is shadow: Darken the pixel and continue on to the next pixel
 						if (pScene->DoesHit(lightRay))
 						{
-							finalColor *= 0.9f;
-
+							finalColor *= 0.95f;
 							continue;
 						}
 					}
 
 					switch (m_CurrentLightingMode)
 					{
-					case LightingMode::ObservedArea:
-						if(lightNormalAngle > 0) finalColor += ColorRGB{ 1.0f, 1.0f, 1.0f } * lightNormalAngle;
+					case LightingMode::ObservedArea:	// Only show Lambert Cosine Law 
+						finalColor += ColorRGB{ 1.0f, 1.0f, 1.0f } * lightNormalAngle * (lightNormalAngle > 0);	// If lightNormalAngle < 0: Final color won't be changed (= 0)
 						break;
-					case LightingMode::Radiance:
+					case LightingMode::Radiance:		// Only show Radiance
 						finalColor += LightUtils::GetRadiance(light, closestHit.origin);
 						break;
-					case LightingMode::BRDF:
+					case LightingMode::BRDF:			// Only show BRDF of a material
 					{
 						const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
 						finalColor += brdf;
 					}
 					break;
-					case LightingMode::Combined:
+					case LightingMode::Combined:		// Show everything combined (default)
 					{
-						if (lightNormalAngle < 0) break;
+						if (lightNormalAngle < 0) break;	// Could be replaced as a multiplication to the finalColor just like in ObservedArea
 						const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
 						const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
 						finalColor += radiance * brdf * lightNormalAngle;
