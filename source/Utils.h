@@ -8,6 +8,16 @@ namespace dae
 {
 	namespace GeometryUtils
 	{
+		inline bool IsToRightSideOfEdge(const Vector3& point, const Vector3& v0, const Vector3& v1, const Vector3& normal)
+		{
+			const Vector3 edge{ v1 - v0 };
+			const Vector3 startToPoint{ point - v0 };
+
+			const Vector3 edgePointCross{ Vector3::Cross(edge, startToPoint) };
+
+			return Vector3::Dot(edgePointCross, normal) > 0;
+		}
+
 #pragma region Sphere HitTest
 		//SPHERE HIT-TESTS
 		inline bool HitTest_Sphere(const Sphere& sphere, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
@@ -180,9 +190,75 @@ namespace dae
 		//TRIANGLE HIT-TESTS
 		inline bool HitTest_Triangle(const Triangle& triangle, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-			//todo W5
-			assert(false && "No Implemented Yet!");
-			return false;
+			// Calculate the dot product with the triangle normal and the view direction
+			const float viewNormalDot{ Vector3::Dot(ray.direction, triangle.normal) };
+
+			// If the camera looks perpendicular on the normal, the triangle is not visible
+			if (abs(viewNormalDot) < FLT_EPSILON) return false;
+
+			// Get the correct current cullmode (the cullmode needs to be flipped for shadow rays)
+			TriangleCullMode curCullMode{ triangle.cullMode };
+			if (ignoreHitRecord)
+			{
+				switch (curCullMode)
+				{
+				case dae::TriangleCullMode::FrontFaceCulling:
+					curCullMode = TriangleCullMode::BackFaceCulling;
+					break;
+				case dae::TriangleCullMode::BackFaceCulling:
+					curCullMode = TriangleCullMode::FrontFaceCulling;
+					break;
+				}
+			}
+
+			// When the camera looks to the culled side of a triangle, return false
+			switch (curCullMode)
+			{
+			case dae::TriangleCullMode::FrontFaceCulling:
+				if (viewNormalDot < 0) return false;
+				break;
+			case dae::TriangleCullMode::BackFaceCulling:
+				if (viewNormalDot > 0) return false;
+				break;
+			}
+			
+			// Calculate the center of the triangle
+			Vector3 center{ (triangle.v0 + triangle.v1 + triangle.v2) / 3.0f };
+			
+			// Calculate a vector from the camera to the triangle
+			const Vector3 planeRayDistance{ center - ray.origin };
+
+			// Calculate the distance from ray hit
+			const float t = Vector3::Dot(planeRayDistance, triangle.normal) / viewNormalDot;
+
+			// If the distance is less then zero; the triangle is not visible
+			if (t < ray.min || t > ray.max)
+			{
+				return false;
+			}
+
+			// Calculate the hit point on the triangle
+			Vector3 hitPoint{ ray.origin + ray.direction * t };
+
+			// Make sure that the hit point is inside the triangle by checking its location compared to the edges
+			//		If point is not in triangle, return false
+			if(!(IsToRightSideOfEdge(hitPoint, triangle.v0, triangle.v1, triangle.normal)
+				&& IsToRightSideOfEdge(hitPoint, triangle.v1, triangle.v2, triangle.normal)
+				&& IsToRightSideOfEdge(hitPoint, triangle.v2, triangle.v0, triangle.normal)))
+			{
+				return false;
+			}
+
+			// If hit records needs to be ignored, just return true
+			if (ignoreHitRecord) return true;
+
+			hitRecord.t = t;
+			hitRecord.origin = hitPoint;
+			hitRecord.normal = triangle.normal;
+			hitRecord.materialIndex = triangle.materialIndex;
+			hitRecord.didHit = true;
+
+			return true;
 		}
 
 		inline bool HitTest_Triangle(const Triangle& triangle, const Ray& ray)
@@ -191,12 +267,46 @@ namespace dae
 			return HitTest_Triangle(triangle, ray, temp, true);
 		}
 #pragma endregion
+
 #pragma region TriangeMesh HitTest
 		inline bool HitTest_TriangleMesh(const TriangleMesh& mesh, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-			//todo W5
-			assert(false && "No Implemented Yet!");
-			return false;
+			// Current closest hit
+			HitRecord tempHit{};
+			bool hasHit{};
+
+			// Create a triangle object that is shared for all triangles
+			Triangle triangle{};
+
+			// Apply the mesh cullmode and material to the triangle
+			triangle.cullMode = mesh.cullMode;
+			triangle.materialIndex = mesh.materialIndex;
+
+			// For each triangle
+			for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
+			{
+				// Set the position and normal of the current triangle to the triangle object
+				triangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
+				triangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
+				triangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
+				triangle.normal = mesh.transformedNormals[triangleIdx / 3];
+
+				// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
+				if (HitTest_Triangle(triangle, ray, tempHit, ignoreHitRecord))
+				{
+					// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
+					if (ignoreHitRecord) return true;
+
+					// Check if the current hit is closer then the previous hit
+					if (hitRecord.t > tempHit.t)
+					{
+						hitRecord = tempHit;
+					}
+					hasHit = true;
+				}
+			}
+
+			return hasHit;
 		}
 
 		inline bool HitTest_TriangleMesh(const TriangleMesh& mesh, const Ray& ray)
