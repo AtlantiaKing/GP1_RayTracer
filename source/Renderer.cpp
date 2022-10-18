@@ -57,6 +57,9 @@ void Renderer::Render(Scene* pScene) const
 			HitRecord closestHit{ };
 			pScene->GetClosestHit(viewRay, closestHit);
 
+			// The total percentage of light on a pixel
+			float lightValue{ 1.0f }; 
+
 			// If the ray hits anything, set finalColor to the hit material color
 			if (closestHit.didHit)
 			{
@@ -66,6 +69,7 @@ void Renderer::Render(Scene* pScene) const
 				// For every light
 				for (const Light& light : pScene->GetLights())
 				{
+					// Offset the origin point to avoid hitting the same object again
 					const Vector3 offsetPosition{ closestHit.origin + closestHit.normal * 0.001f };
 
 					// Calculate the direction between the point to the light position
@@ -73,8 +77,6 @@ void Renderer::Render(Scene* pScene) const
 
 					// Calculate the distance between the point and the light and normalize the light direction
 					const float lightDistance{ lightDirection.Normalize() };
-
-					const float lightNormalAngle{ Vector3::Dot(closestHit.normal, lightDirection) };
 
 					if (m_AreShadowsEnabled)
 					{
@@ -87,15 +89,16 @@ void Renderer::Render(Scene* pScene) const
 						// If there is shadow: Darken the pixel and continue on to the next pixel
 						if (pScene->DoesHit(lightRay))
 						{
-							finalColor *= 0.95f;
-							continue;
+							lightValue *= 0.95f;
 						}
 					}
+
+					const float lightNormalAngle{ std::max(Vector3::Dot(closestHit.normal, lightDirection), 0.0f) };
 
 					switch (m_CurrentLightingMode)
 					{
 					case LightingMode::ObservedArea:	// Only show Lambert Cosine Law 
-						finalColor += ColorRGB{ 1.0f, 1.0f, 1.0f } * lightNormalAngle * (lightNormalAngle > 0);	// If lightNormalAngle < 0: Final color won't be changed (= 0)
+						finalColor += ColorRGB{ lightNormalAngle, lightNormalAngle, lightNormalAngle };
 						break;
 					case LightingMode::Radiance:		// Only show Radiance
 						finalColor += LightUtils::GetRadiance(light, closestHit.origin);
@@ -108,7 +111,6 @@ void Renderer::Render(Scene* pScene) const
 					break;
 					case LightingMode::Combined:		// Show everything combined (default)
 					{
-						if (lightNormalAngle < 0) break;	// Could be replaced as a multiplication to the finalColor just like in ObservedArea
 						const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
 						const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
 						finalColor += radiance * brdf * lightNormalAngle;
@@ -117,9 +119,11 @@ void Renderer::Render(Scene* pScene) const
 					}
 				}
 			}
-
 			//Update Color in Buffer
 			finalColor.MaxToOne();
+
+			// The apply the light percentage to the current color
+			finalColor *= lightValue;
 
 			m_pBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBuffer->format,
 				static_cast<uint8_t>(finalColor.r * 255),

@@ -34,12 +34,11 @@ namespace dae
 		 */
 		static ColorRGB Phong(float ks, float exp, const Vector3& l, const Vector3& v, const Vector3& n)
 		{
-			const Vector3 reflectedLightVector{ l - 2 * Vector3::Dot(n,l) * n };
-			float reflectedViewDot{ Vector3::Dot(reflectedLightVector, v) };
+			const Vector3 reflectedLightVector{ Vector3::Reflect(l,n) };
+			const float reflectedViewDot{ std::max(Vector3::Dot(reflectedLightVector, v), 0.0f) };
+			const float phong{ ks * powf(reflectedViewDot, exp) };
 
-			if (reflectedViewDot < 0) reflectedViewDot = 0;
-
-			return ColorRGB{1.0f, 1.0f, 1.0f} * ks * powf(reflectedViewDot, exp);
+			return ColorRGB{ phong, phong, phong };
 		}
 
 		/**
@@ -51,7 +50,7 @@ namespace dae
 		 */
 		static ColorRGB FresnelFunction_Schlick(const Vector3& h, const Vector3& v, const ColorRGB& f0)
 		{
-			return ColorRGB::Lerp(f0, ColorRGB{ 1.0f, 1.0f,1.0f }, powf(1.0f - Vector3::Dot(h, v), 5.0f));
+			return ColorRGB::Lerp(f0, ColorRGB{ 1.0f, 1.0f, 1.0f }, powf(1.0f - Vector3::Dot(h, v), 5.0f));
 		}
 
 		/**
@@ -80,7 +79,8 @@ namespace dae
 		{
 			const float alpha{ Square(roughness) };
 			const float k{ Square(alpha + 1.0f) / 8.0f };
-			return Vector3::Dot(n,v) / (Vector3::Dot(n,v) * (1-k) + k);
+			const float dot{ std::max(Vector3::Dot(n,v), 0.0f) };
+			return dot / (dot * (1-k) + k);
 		}
 
 		/**
