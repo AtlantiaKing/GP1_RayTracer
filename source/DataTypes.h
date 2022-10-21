@@ -123,8 +123,6 @@ namespace dae
 
 		void CalculateNormals()
 		{
-			normals.clear();
-
 			normals.resize(indices.size() / 3);
 
 			for (int triangle{}; triangle < indices.size(); triangle += 3)

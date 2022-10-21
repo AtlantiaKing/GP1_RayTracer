@@ -239,22 +239,22 @@ namespace dae {
 		const unsigned char matId_Solid_Magenta = AddMaterial(new Material_SolidColor{ colors::Magenta });
 
 		//Plane
-		AddPlane({ -5.f, 0.f, 0.f }, { 1.f, 0.f,0.f }, matId_Solid_Green);
-		AddPlane({ 5.f, 0.f, 0.f }, { -1.f, 0.f,0.f }, matId_Solid_Green);
-		AddPlane({ 0.f, 0.f, 0.f }, { 0.f, 1.f,0.f }, matId_Solid_Yellow);
-		AddPlane({ 0.f, 10.f, 0.f }, { 0.f, -1.f,0.f }, matId_Solid_Yellow);
-		AddPlane({ 0.f, 0.f, 10.f }, { 0.f, 0.f,-1.f }, matId_Solid_Magenta);
+		AddPlane({ -5.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, matId_Solid_Green);
+		AddPlane({ 5.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f }, matId_Solid_Green);
+		AddPlane({ 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, matId_Solid_Yellow);
+		AddPlane({ 0.0f, 10.0f, 0.0f }, { 0.0f, -1.0f, 0.0f }, matId_Solid_Yellow);
+		AddPlane({ 0.0f, 0.0f, 10.0f }, { 0.0f, 0.0f,-1.0f }, matId_Solid_Magenta);
 
 		//Spheres
-		AddSphere({ -1.75f, 1.f, 0.f }, .75f, matId_Solid_Red);
-		AddSphere({ 0.f, 1.f, 0.f }, .75f, matId_Solid_Blue);
-		AddSphere({ 1.75f, 1.f, 0.f }, .75f, matId_Solid_Red);
-		AddSphere({ -1.75f, 3.f, 0.f }, .75f, matId_Solid_Blue);
-		AddSphere({ 0.f, 3.f, 0.f }, .75f, matId_Solid_Red);
-		AddSphere({ 1.75f, 3.f, 0.f }, .75f, matId_Solid_Blue);
+		AddSphere({ -1.75f, 1.0f, 0.0f }, 0.75f, matId_Solid_Red);
+		AddSphere({ 0.0f, 1.0f, 0.0f }, 0.75f, matId_Solid_Blue);
+		AddSphere({ 1.75f, 1.0f, 0.0f }, 0.75f, matId_Solid_Red);
+		AddSphere({ -1.75f, 3.0f, 0.0f }, 0.75f, matId_Solid_Blue);
+		AddSphere({ 0.f, 3.0f, 0.0f }, 0.75f, matId_Solid_Red);
+		AddSphere({ 1.75f, 3.0f, 0.0f }, 0.75f, matId_Solid_Blue);
 
 		//Light
-		AddPointLight({ 0.f, 5.f, -5.f }, 70.f, colors::White);
+		AddPointLight({ 0.0f, 5.0f, -5.0f }, 70.0f, colors::White);
 	}
 #pragma endregion
 	void Scene_W3::Initialize()
@@ -276,7 +276,7 @@ namespace dae {
 		AddPointLight({ 0.0f, 2.5f, -5.0f }, 25.0f, colors::White);*/
 
 
-		m_Camera.origin = { 0.f, 3.0f, -9.0f };
+		m_Camera.origin = { 0.0f, 3.0f, -9.0f };
 		m_Camera.SetFovAngle(45.0f);
 
 		const auto matCT_GrayRoughMetal = AddMaterial(new Material_CookTorrence({ 0.972f, 0.960f, 0.915f }, 1.0f, 1.0f));
@@ -320,7 +320,7 @@ namespace dae {
 
 	void Scene_W4_TestScene::Initialize()
 	{
-		m_Camera.origin = { 0.f, 1.f, -5.f };
+		m_Camera.origin = { 0.0f, 1.0f, -5.0f };
 		m_Camera.SetFovAngle(45.0f);
 
 		//Materials
