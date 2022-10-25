@@ -63,9 +63,6 @@ void Renderer::Render(Scene* pScene) const
 			// If the ray hits anything, set finalColor to the hit material color
 			if (closestHit.didHit)
 			{
-				// Set the color to the shading of the current object
-				//finalColor = materials[closestHit.materialIndex]->Shade();
-
 				// For every light
 				for (const Light& light : pScene->GetLights())
 				{
@@ -90,6 +87,7 @@ void Renderer::Render(Scene* pScene) const
 						if (pScene->DoesHit(lightRay))
 						{
 							lightValue *= 0.95f;
+							continue;
 						}
 					}
 
