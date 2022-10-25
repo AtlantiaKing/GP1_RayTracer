@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include "Vector3.h"
 
 struct SDL_Window;
@@ -8,6 +9,9 @@ struct SDL_Surface;
 
 namespace dae
 {
+	struct Camera;
+	struct Light;
+	class Material;
 	class Scene;
 
 	class Renderer final
@@ -22,10 +26,13 @@ namespace dae
 		Renderer& operator=(Renderer&&) noexcept = delete;
 
 		void Render(Scene* pScene) const;
+
+		void RenderPixel(Scene* pScene, unsigned int pixelIndex, const Camera& camera, const std::vector<Light>& lights, const std::vector<Material*>& materials) const;
+
 		bool SaveBufferToImage() const;
 
 		void CycleLightingMode();
-		void ToggleShadows() { m_AreShadowsEnabled = !m_AreShadowsEnabled; };
+		void ToggleShadows();
 
 	private:
 		enum class LightingMode
@@ -47,7 +54,5 @@ namespace dae
 		int m_Width{};
 		int m_Height{};
 		float m_AspectRatio{};
-
-		bool DoesPointHaveShadow(Scene* pScene, const Vector3& point) const;
 	};
 }

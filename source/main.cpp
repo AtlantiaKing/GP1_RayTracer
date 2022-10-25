@@ -41,15 +41,15 @@ int main(int argc, char* args[])
 	if (!pWindow)
 		return 1;
 
-	// Lock cursor
-	SDL_SetRelativeMouseMode(SDL_TRUE);
-
 	//Initialize "framework"
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
 
 	const auto pScene = new Scene_W4_ReferenceScene();
 	pScene->Initialize();
+
+	// Lock cursor
+	SDL_SetRelativeMouseMode(SDL_TRUE);
 
 	//Start loop
 	pTimer->Start();
@@ -58,6 +58,7 @@ int main(int argc, char* args[])
 	bool takeScreenshot = false;
 	while (isLooping)
 	{
+
 		//--------- Get input events ---------
 		SDL_Event e;
 		while (SDL_PollEvent(&e))
@@ -68,15 +69,33 @@ int main(int argc, char* args[])
 				isLooping = false;
 				break;
 			case SDL_KEYUP:
-				if(e.key.keysym.scancode == SDL_SCANCODE_X)
+				switch (e.key.keysym.scancode)
+				{
+				case SDL_SCANCODE_X:
 					takeScreenshot = true;
-				if (e.key.keysym.scancode == SDL_SCANCODE_F3)
+					break;
+				case SDL_SCANCODE_F3:
 					pRenderer->CycleLightingMode();
-				if (e.key.keysym.scancode == SDL_SCANCODE_F2)
+					break;
+				case SDL_SCANCODE_F2:
 					pRenderer->ToggleShadows();
+					break;
+				case SDL_SCANCODE_LALT:
+					SDL_SetRelativeMouseMode(SDL_TRUE);
+					break;
+				}
+				break;
+			case SDL_KEYDOWN:
+				switch (e.key.keysym.scancode)
+				{
+				case SDL_SCANCODE_LALT:
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+					break;
+				}
 				break;
 			}
 		}
+
 
 		//--------- Update ---------
 		pScene->Update(pTimer);

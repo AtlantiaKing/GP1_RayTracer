@@ -33,20 +33,20 @@ namespace dae
 
 		Matrix cameraToWorld{};
 
-
 		Matrix CalculateCameraToWorld()
 		{
 			right = Vector3::Cross(Vector3::UnitY, forward);
 			up = Vector3::Cross(forward, right);
 
-			Matrix worldMatrix
+			cameraToWorld = Matrix
 			{
 				right,
 				up,
 				forward,
 				origin
 			};
-			return worldMatrix;
+
+			return cameraToWorld;
 		}
 
 		void Update(Timer* pTimer)
