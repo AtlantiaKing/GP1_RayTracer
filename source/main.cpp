@@ -83,6 +83,9 @@ int main(int argc, char* args[])
 				case SDL_SCANCODE_LALT:
 					SDL_SetRelativeMouseMode(SDL_TRUE);
 					break;
+				case SDL_SCANCODE_F6:
+					pTimer->StartBenchmark();
+					break;
 				}
 				break;
 			case SDL_KEYDOWN:
