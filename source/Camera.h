@@ -82,8 +82,10 @@ namespace dae
 			newFovAngle += pKeyboardState[SDL_SCANCODE_LEFT] * fovChangeSpeed * deltaTime;
 			newFovAngle -= pKeyboardState[SDL_SCANCODE_RIGHT] * fovChangeSpeed * deltaTime;
 
+			const float fovDifference{ newFovAngle - fovAngle };
+
 			// Clamp the new fov angle and calculate the tangent
-			if (abs(newFovAngle - fovAngle) > FLT_EPSILON)
+			if (fovDifference > FLT_EPSILON || fovDifference < -FLT_EPSILON)
 			{
 				if (newFovAngle < minFov)
 				{

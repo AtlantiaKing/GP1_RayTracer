@@ -4,6 +4,8 @@
 #include "Math.h"
 #include "DataTypes.h"
 
+#define MAYA_IMPORT
+
 namespace dae
 {
 	namespace GeometryUtils
@@ -194,7 +196,7 @@ namespace dae
 			const float viewNormalDot{ Vector3::Dot(ray.direction, triangle.normal) };
 
 			// If the camera looks perpendicular on the normal, the triangle is not visible
-			if (abs(viewNormalDot) < FLT_EPSILON) return false;
+			if (viewNormalDot > -FLT_EPSILON && viewNormalDot < FLT_EPSILON) return false;
 
 			// Get the correct current cullmode (the cullmode needs to be flipped for shadow rays)
 			TriangleCullMode curCullMode{ triangle.cullMode };
@@ -221,44 +223,78 @@ namespace dae
 				if (viewNormalDot > 0) return false;
 				break;
 			}
-			
-			// Calculate the center of the triangle
-			Vector3 center{ (triangle.v0 + triangle.v1 + triangle.v2) / 3.0f };
-			
-			// Calculate a vector from the camera to the triangle
-			const Vector3 planeRayDistance{ center - ray.origin };
 
-			// Calculate the distance from ray hit
-			const float t = Vector3::Dot(planeRayDistance, triangle.normal) / viewNormalDot;
+			// Calculate the edges of the triangle
+			const Vector3 edge1{ triangle.v1 - triangle.v0 };
+			const Vector3 edge2{ triangle.v2 - triangle.v0 };
+
+			const Vector3 h{ Vector3::Cross(ray.direction, edge2) };
+
+			const float f{ 1.0f / Vector3::Dot(edge1, h) };
+			const Vector3 s{ ray.origin - triangle.v0 };
+			const float u{ f * Vector3::Dot(s,h) };
+
+			if (u < 0.0f || u > 1.0f) return false;
+
+			const Vector3 q{ Vector3::Cross(s, edge1) };
+			const float v{ f * Vector3::Dot(ray.direction, q) };
+
+			if (v < 0.0f || u + v > 1.0f) return false;
+
+			// At this stage we can compute t to find out where the intersection point is on the line.
+			const float t{ f * Vector3::Dot(edge2, q) };
 
 			// If the distance is less then zero; the triangle is not visible
-			if (t < ray.min || t > ray.max)
-			{
-				return false;
-			}
-
-			// Calculate the hit point on the triangle
-			Vector3 hitPoint{ ray.origin + ray.direction * t };
-
-			// Make sure that the hit point is inside the triangle by checking its location compared to the edges
-			//		If point is not in triangle, return false
-			if(!(IsToRightSideOfEdge(hitPoint, triangle.v0, triangle.v1, triangle.normal)
-				&& IsToRightSideOfEdge(hitPoint, triangle.v1, triangle.v2, triangle.normal)
-				&& IsToRightSideOfEdge(hitPoint, triangle.v2, triangle.v0, triangle.normal)))
-			{
-				return false;
-			}
+			if (t < ray.min || t > ray.max) return false;
 
 			// If hit records needs to be ignored, just return true
 			if (ignoreHitRecord) return true;
 
 			hitRecord.t = t;
-			hitRecord.origin = hitPoint;
+			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.normal = triangle.normal;
 			hitRecord.materialIndex = triangle.materialIndex;
 			hitRecord.didHit = true;
 
 			return true;
+
+			//// Calculate the center of the triangle
+			//Vector3 center{ (triangle.v0 + triangle.v1 + triangle.v2) / 3.0f };
+			//
+			//// Calculate a vector from the camera to the triangle
+			//const Vector3 planeRayDistance{ center - ray.origin };
+
+			//// Calculate the distance from ray hit
+			//const float t = Vector3::Dot(planeRayDistance, triangle.normal) / viewNormalDot;
+
+			//// If the distance is less then zero; the triangle is not visible
+			//if (t < ray.min || t > ray.max)
+			//{
+			//	return false;
+			//}
+
+			//// Calculate the hit point on the triangle
+			//Vector3 hitPoint{ ray.origin + ray.direction * t };
+
+			//// Make sure that the hit point is inside the triangle by checking its location compared to the edges
+			////		If point is not in triangle, return false
+			//if(!(IsToRightSideOfEdge(hitPoint, triangle.v0, triangle.v1, triangle.normal)
+			//	&& IsToRightSideOfEdge(hitPoint, triangle.v1, triangle.v2, triangle.normal)
+			//	&& IsToRightSideOfEdge(hitPoint, triangle.v2, triangle.v0, triangle.normal)))
+			//{
+			//	return false;
+			//}
+
+			//// If hit records needs to be ignored, just return true
+			//if (ignoreHitRecord) return true;
+
+			//hitRecord.t = t;
+			//hitRecord.origin = hitPoint;
+			//hitRecord.normal = triangle.normal;
+			//hitRecord.materialIndex = triangle.materialIndex;
+			//hitRecord.didHit = true;
+
+			//return true;
 		}
 
 		inline bool HitTest_Triangle(const Triangle& triangle, const Ray& ray)
@@ -416,8 +452,18 @@ namespace dae
 				}
 				else if (sCommand == "f")
 				{
-					float i0, i1, i2;
+					float i0{}, i1{}, i2{};
+#if defined(MAYA_IMPORT)
+					std::string s0, s1, s2;
+					file >> s0 >> s1 >> s2;
+					const char delimiter{ '/' };
+					if (!(s0.size() > 0 && s1.size() > 0 && s2.size() > 0)) continue;
+					i0 = std::stof(s0.substr(0.0f, s0.find(delimiter)));
+					i1 = std::stof(s1.substr(0.0f, s1.find(delimiter)));
+					i2 = std::stof(s2.substr(0.0f, s2.find(delimiter)));
+#else
 					file >> i0 >> i1 >> i2;
+#endif
 
 					indices.push_back((int)i0 - 1);
 					indices.push_back((int)i1 - 1);
