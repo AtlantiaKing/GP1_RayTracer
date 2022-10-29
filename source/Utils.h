@@ -224,6 +224,8 @@ namespace dae
 				break;
 			}
 
+			// Source: https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+
 			// Calculate the edges of the triangle
 			const Vector3 edge1{ triangle.v1 - triangle.v0 };
 			const Vector3 edge2{ triangle.v2 - triangle.v0 };
