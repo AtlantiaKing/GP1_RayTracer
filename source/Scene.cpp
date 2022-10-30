@@ -467,6 +467,8 @@ namespace dae {
 		m_pMesh = AddTriangleMesh(TriangleCullMode::BackFaceCulling, matLambert_White);
 		Utils::ParseOBJ("Resources/lowpoly_bunny2.obj", m_pMesh->positions, m_pMesh->normals, m_pMesh->indices);
 
+		m_pMesh->pBvhNodes = new BVHNode[m_pMesh->indices.size()]{};
+
 		m_pMesh->Scale({ 2.0f, 2.0f, 2.0f });
 
 		m_pMesh->UpdateAABB();

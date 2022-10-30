@@ -39,11 +39,13 @@ namespace dae
 			// Calculate the distance from the ray origin to the ray hit point
 			float t{ };
 
+			const float discriminantDivisor{ 1.0f / (2.0f * a) };
+
 			// Calculate both hit point distances and use the smallest
-			t = (-b - sqrtDiscriminant) / (2.0f * a);
+			t = (-b - sqrtDiscriminant)  * discriminantDivisor;
 			if (t < ray.min || t > ray.max)
 			{
-				t = (-b + sqrtDiscriminant) / (2.0f * a);
+				t = (-b + sqrtDiscriminant) * discriminantDivisor;
 				if (t < ray.min || t > ray.max)
 				{
 					// If both t values are less then ray.min or more then ray.max, nothing is visible
@@ -307,22 +309,22 @@ namespace dae
 #pragma endregion
 
 #pragma region TriangeMesh HitTest
-		inline bool SlabTest_TriangleMesh(const TriangleMesh& mesh, const Ray& ray)
+		inline bool SlabTest(const Ray& ray, const Vector3& minAABB, const Vector3& maxAABB)
 		{
-			const float tx1 = (mesh.transformedMinAABB.x - ray.origin.x) / ray.direction.x;
-			const float tx2 = (mesh.transformedMaxAABB.x - ray.origin.x) / ray.direction.x;
+			const float tx1 = (minAABB.x - ray.origin.x) * ray.inversedDirection.x;
+			const float tx2 = (maxAABB.x - ray.origin.x) * ray.inversedDirection.x;
 
 			float tmin = std::min(tx1, tx2);
 			float tmax = std::max(tx1, tx2);
 
-			const float ty1 = (mesh.transformedMinAABB.y - ray.origin.y) / ray.direction.y;
-			const float ty2 = (mesh.transformedMaxAABB.y - ray.origin.y) / ray.direction.y;
+			const float ty1 = (minAABB.y - ray.origin.y) * ray.inversedDirection.y;
+			const float ty2 = (maxAABB.y - ray.origin.y) * ray.inversedDirection.y;
 
 			tmin = std::max(tmin, std::min(ty1, ty2));
 			tmax = std::min(tmax, std::max(ty1, ty2));
 
-			const float tz1 = (mesh.transformedMinAABB.z - ray.origin.z) / ray.direction.z;
-			const float tz2 = (mesh.transformedMaxAABB.z - ray.origin.z) / ray.direction.z;
+			const float tz1 = (minAABB.z - ray.origin.z) * ray.inversedDirection.z;
+			const float tz2 = (maxAABB.z - ray.origin.z) * ray.inversedDirection.z;
 
 			tmin = std::max(tmin, std::min(tz1, tz2));
 			tmax = std::min(tmax, std::max(tz1, tz2));
@@ -330,48 +332,95 @@ namespace dae
 			return tmax > 0 && tmax >= tmin;
 		}
 
+		inline void IntersectBVH(const TriangleMesh& mesh, const Ray& ray, HitRecord& hitRecord, bool& hasHit, HitRecord& curClosestHit, bool ignoreHitRecord, unsigned int bvhNodeIdx)
+		{
+			BVHNode& node{ mesh.pBvhNodes[bvhNodeIdx] };
+
+			// Slabtest
+			if (!SlabTest(ray, node.aabbMin, node.aabbMax)) return;
+
+			if (node.IsLeaf())
+			{
+				// Create a triangle object that is shared for all triangles
+				Triangle triangle{};
+
+				// Apply the mesh cullmode and material to the triangle
+				triangle.cullMode = mesh.cullMode;
+				triangle.materialIndex = mesh.materialIndex;
+
+				// For each triangle
+				for (unsigned int triangleIdx{}; triangleIdx < node.indicesCount; triangleIdx += 3)
+				{
+					// Set the position and normal of the current triangle to the triangle object
+					triangle.v0 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx]];
+					triangle.v1 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx + 1]];
+					triangle.v2 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx + 2]];
+					triangle.normal = mesh.transformedNormals[(node.firstIndice + triangleIdx) / 3];
+
+					// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
+					if (HitTest_Triangle(triangle, ray, curClosestHit, ignoreHitRecord))
+					{
+						hasHit = true;
+
+						// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
+						if (ignoreHitRecord) return;
+
+						// Check if the current hit is closer then the previous hit
+						if (hitRecord.t > curClosestHit.t)
+						{
+							hitRecord = curClosestHit;
+						}
+					}
+				}
+			}
+			else
+			{
+				IntersectBVH(mesh, ray, hitRecord, hasHit, curClosestHit, ignoreHitRecord, node.leftChild);
+				IntersectBVH(mesh, ray, hitRecord, hasHit, curClosestHit, ignoreHitRecord, node.leftChild + 1);
+			}
+		}
+
 		inline bool HitTest_TriangleMesh(const TriangleMesh& mesh, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-			// Slabtest
-			if (!SlabTest_TriangleMesh(mesh, ray))
-			{
-				return false;
-			}
+			//// Slabtest
+			//if (!SlabTest(ray, mesh.transformedMinAABB, mesh.transformedMaxAABB))	return false;
 
 			// Current closest hit
 			HitRecord tempHit{};
 			bool hasHit{};
 
-			// Create a triangle object that is shared for all triangles
-			Triangle triangle{};
+			IntersectBVH(mesh, ray, hitRecord, hasHit, tempHit, ignoreHitRecord, 0);
 
-			// Apply the mesh cullmode and material to the triangle
-			triangle.cullMode = mesh.cullMode;
-			triangle.materialIndex = mesh.materialIndex;
+			//// Create a triangle object that is shared for all triangles
+			//Triangle triangle{};
 
-			// For each triangle
-			for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
-			{
-				// Set the position and normal of the current triangle to the triangle object
-				triangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
-				triangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
-				triangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
-				triangle.normal = mesh.transformedNormals[triangleIdx / 3];
+			//// Apply the mesh cullmode and material to the triangle
+			//triangle.cullMode = mesh.cullMode;
+			//triangle.materialIndex = mesh.materialIndex;
 
-				// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
-				if (HitTest_Triangle(triangle, ray, tempHit, ignoreHitRecord))
-				{
-					// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
-					if (ignoreHitRecord) return true;
+			//// For each triangle
+			//for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
+			//{
+			//	// Set the position and normal of the current triangle to the triangle object
+			//	triangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
+			//	triangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
+			//	triangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
+			//	triangle.normal = mesh.transformedNormals[triangleIdx / 3];
 
-					// Check if the current hit is closer then the previous hit
-					if (hitRecord.t > tempHit.t)
-					{
-						hitRecord = tempHit;
-					}
-					hasHit = true;
-				}
-			}
+			//	// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
+			//	if (HitTest_Triangle(triangle, ray, tempHit, ignoreHitRecord))
+			//	{
+			//		// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
+			//		if (ignoreHitRecord) return true;
+
+			//		// Check if the current hit is closer then the previous hit
+			//		if (hitRecord.t > tempHit.t)
+			//		{
+			//			hitRecord = tempHit;
+			//		}
+			//		hasHit = true;
+			//	}
+			//}
 
 			return hasHit;
 		}
@@ -460,9 +509,9 @@ namespace dae
 					file >> s0 >> s1 >> s2;
 					const char delimiter{ '/' };
 					if (!(s0.size() > 0 && s1.size() > 0 && s2.size() > 0)) continue;
-					i0 = std::stof(s0.substr(0.0f, s0.find(delimiter)));
-					i1 = std::stof(s1.substr(0.0f, s1.find(delimiter)));
-					i2 = std::stof(s2.substr(0.0f, s2.find(delimiter)));
+					i0 = std::stof(s0.substr(0, s0.find(delimiter)));
+					i1 = std::stof(s1.substr(0, s1.find(delimiter)));
+					i2 = std::stof(s2.substr(0, s2.find(delimiter)));
 #else
 					file >> i0 >> i1 >> i2;
 #endif

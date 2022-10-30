@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <nmmintrin.h>
 
 #include "Math.h"
 #include "vector"
@@ -33,8 +34,8 @@ namespace dae
 	struct Triangle
 	{
 		Triangle() = default;
-		Triangle(const Vector3& _v0, const Vector3& _v1, const Vector3& _v2, const Vector3& _normal):
-			v0{_v0}, v1{_v1}, v2{_v2}, normal{_normal.Normalized()}{}
+		Triangle(const Vector3& _v0, const Vector3& _v1, const Vector3& _v2, const Vector3& _normal) :
+			v0{ _v0 }, v1{ _v1 }, v2{ _v2 }, normal{ _normal.Normalized() } {}
 
 		Triangle(const Vector3& _v0, const Vector3& _v1, const Vector3& _v2) :
 			v0{ _v0 }, v1{ _v1 }, v2{ _v2 }
@@ -52,6 +53,43 @@ namespace dae
 
 		TriangleCullMode cullMode{};
 		unsigned char materialIndex{};
+	};
+
+	struct BVHNode
+	{
+		Vector3 aabbMin{};
+		Vector3 aabbMax{};
+		unsigned int leftChild{};
+		unsigned int firstIndice{};
+		unsigned int indicesCount{};
+		bool IsLeaf() { return indicesCount > 0; };
+	};
+
+	struct AABB
+	{
+		Vector3 min{ Vector3::One * FLT_MAX };
+		Vector3 max{ Vector3::One * FLT_MIN };
+		void Grow(const Vector3& point)
+		{
+			min = Vector3::Min(min, point);
+			max = Vector3::Max(max, point);
+		}
+		void Grow(const AABB& bounds)
+		{
+			min = Vector3::Min(min, bounds.min);
+			max = Vector3::Max(max, bounds.max);
+		}
+		float GetArea()
+		{
+			Vector3 boxSize{ max - min };
+			return boxSize.x * boxSize.y + boxSize.y * boxSize.z + boxSize.z * boxSize.x;
+		}
+	};
+
+	struct Bin
+	{
+		AABB bounds{};
+		int indicesCount{};
 	};
 
 	struct TriangleMesh
@@ -73,6 +111,11 @@ namespace dae
 			UpdateTransforms();
 		}
 
+		~TriangleMesh()
+		{
+			delete[] pBvhNodes;
+		}
+
 		std::vector<Vector3> positions{};
 		std::vector<Vector3> normals{};
 		std::vector<int> indices{};
@@ -92,6 +135,10 @@ namespace dae
 
 		std::vector<Vector3> transformedPositions{};
 		std::vector<Vector3> transformedNormals{};
+
+		BVHNode* pBvhNodes;
+		unsigned int rootBvhNodeIdx{};
+		unsigned int bvhNodesUsed{};
 
 		void Translate(const Vector3& translation)
 		{
@@ -176,6 +223,8 @@ namespace dae
 			}
 
 			UpdateTransformedAABB(finalTranformation);
+
+			UpdateBVH();
 		}
 
 		void UpdateTransformedAABB(const Matrix& finalTransform)
@@ -216,6 +265,228 @@ namespace dae
 			transformedMinAABB = tMinAABB;
 			transformedMaxAABB = tMaxAABB;
 		}
+
+		void BuildBVH()
+		{
+			BVHNode& root = pBvhNodes[rootBvhNodeIdx];
+			root.leftChild = 0;
+			root.firstIndice = 0;
+			root.indicesCount = static_cast<unsigned int>(indices.size());
+
+			UpdateBVHNodeBounds(rootBvhNodeIdx);
+
+			Subdivide(rootBvhNodeIdx);
+		}
+
+		void UpdateBVH()
+		{
+			bvhNodesUsed = 0;
+
+			BVHNode& root = pBvhNodes[rootBvhNodeIdx];
+			root.leftChild = 0;
+			root.firstIndice = 0;
+			root.indicesCount = static_cast<unsigned int>(indices.size());
+
+			UpdateBVHNodeBounds(rootBvhNodeIdx);
+
+			Subdivide(rootBvhNodeIdx);
+		}
+
+		void UpdateBVHNodeBounds(int nodeIdx)
+		{
+			BVHNode& node{ pBvhNodes[nodeIdx] };
+
+			node.aabbMin = Vector3::One * FLT_MAX;
+			node.aabbMax = Vector3::One * FLT_MIN;
+
+			for (size_t i = node.firstIndice; i < node.firstIndice + node.indicesCount; ++i)
+			{
+				Vector3& curVertex{ transformedPositions[indices[i]] };
+				node.aabbMin = Vector3::Min(node.aabbMin, curVertex);
+				node.aabbMax = Vector3::Max(node.aabbMax, curVertex);
+			}
+		}
+
+		void Subdivide(int nodeIdx)
+		{
+			BVHNode& node{ pBvhNodes[nodeIdx] };
+
+			if (node.indicesCount <= 6) return;
+
+			// Determine split axis and position using SAH
+			int axis{ -1 };
+			float splitPos{ 0 };
+			float cost{ FindBestSplitPlane(node, axis, splitPos) };
+			
+			const float noSplitCost{ CalculateNodeCost(node) };
+			if (cost >= noSplitCost) return;
+
+			// in-place partition
+			int i{ static_cast<int>(node.firstIndice) };
+			int j{ i + static_cast<int>(node.indicesCount) - 1 };
+			while (i <= j)
+			{
+				const Vector3 centroid{ (transformedPositions[indices[i]] + transformedPositions[indices[i + 1]] + transformedPositions[indices[i + 2]]) / 3.0f };
+
+				if (centroid[axis] < splitPos)
+				{
+					i += 3;
+				}
+				else
+				{
+					std::swap(indices[i], indices[j - 2]);
+					std::swap(indices[i + 1], indices[j - 1]);
+					std::swap(indices[i + 2], indices[j]);
+					std::swap(normals[i / 3], normals[(j - 2) / 3]);
+					std::swap(transformedNormals[i / 3], transformedNormals[(j - 2) / 3]);
+
+					j -= 3;
+				}
+			}
+
+			// abort split if one of the sides is empty
+			unsigned int leftCount{ i - node.firstIndice };
+			if (leftCount == 0 || leftCount == node.indicesCount)
+			{
+				return;
+			}
+
+			// Create child nodes
+			unsigned int leftChildIdx{ ++bvhNodesUsed };
+			unsigned int rightChildIdx{ ++bvhNodesUsed };
+
+			node.leftChild = leftChildIdx;
+
+			pBvhNodes[leftChildIdx].firstIndice = node.firstIndice;
+			pBvhNodes[leftChildIdx].indicesCount = leftCount;
+			pBvhNodes[rightChildIdx].firstIndice = i;
+			pBvhNodes[rightChildIdx].indicesCount = node.indicesCount - leftCount;
+			node.indicesCount = 0;
+
+			UpdateBVHNodeBounds(leftChildIdx);
+			UpdateBVHNodeBounds(rightChildIdx);
+
+			// Recurse
+			Subdivide(leftChildIdx);
+			Subdivide(rightChildIdx);
+		}
+
+		float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos) const
+		{
+			float bestCost{ FLT_MAX };
+			for (int curAxis{}; curAxis < 3; curAxis++)
+			{
+				float boundsMin{ FLT_MAX };
+				float boundsMax{ FLT_MIN };
+				for (unsigned int i{}; i < node.indicesCount; i += 3)
+				{
+					const Vector3 centroid{ (transformedPositions[indices[node.firstIndice + i]] + transformedPositions[indices[node.firstIndice + i + 1]] + transformedPositions[indices[node.firstIndice + i + 2]]) / 3.0f };
+					boundsMin = std::min(centroid[curAxis], boundsMin);
+					boundsMax = std::max(centroid[curAxis], boundsMin);
+				}
+
+				if (boundsMin - boundsMax < FLT_EPSILON && boundsMin - boundsMax > -FLT_EPSILON) continue;
+
+				const int nrBins{ 8 };
+
+				Bin bins[nrBins];
+
+				float scale{ nrBins / (boundsMax - boundsMin) };
+
+				for (unsigned int i{}; i < node.indicesCount; i += 3)
+				{
+					const Vector3& v0{ transformedPositions[indices[node.firstIndice + i]] };
+					const Vector3& v1{ transformedPositions[indices[node.firstIndice + i + 1]] };
+					const Vector3& v2{ transformedPositions[indices[node.firstIndice + i + 2]] };
+
+					const Vector3 centroid{ (v0 + v1 + v2) / 3.0f }; 
+
+					int binIdx{ std::min(nrBins - 1, static_cast<int>((centroid[curAxis] - boundsMin) * scale)) };
+
+					bins[binIdx].indicesCount += 3;
+					bins[binIdx].bounds.Grow(v0);
+					bins[binIdx].bounds.Grow(v1);
+					bins[binIdx].bounds.Grow(v2);
+				}
+
+				float leftArea[nrBins - 1]{};
+				float rightArea[nrBins - 1]{};
+				float leftCount[nrBins - 1]{};
+				float rightCount[nrBins - 1]{};
+
+				AABB leftBox{};
+				AABB rightBox{};
+				float leftSum{};
+				float rightSum{};
+
+				for (int i{}; i < nrBins - 1; ++i)
+				{
+					leftSum += bins[i].indicesCount;
+					leftCount[i] = leftSum;
+					leftBox.Grow(bins[i].bounds);
+					leftArea[i] = leftBox.GetArea();
+
+					rightSum += bins[nrBins - 1 - i].indicesCount;
+					rightCount[nrBins - 2 - i] = rightSum;
+					rightBox.Grow(bins[nrBins - 1 - i].bounds);
+					rightArea[nrBins - 2 - i] = rightBox.GetArea();
+				}
+
+				scale = (boundsMax - boundsMin) / nrBins;
+
+				for (unsigned int i{}; i < nrBins - 1; ++i)
+				{
+					const float planeCost{ leftCount[i] * leftArea[i] + rightCount[i] * rightArea[i] };
+
+					bool isBetterCost{ planeCost < bestCost };
+					splitPos = (boundsMin + scale * (i+1)) * isBetterCost + splitPos * !isBetterCost;
+					axis = curAxis * isBetterCost + axis * !isBetterCost;
+					bestCost = planeCost * isBetterCost + bestCost * !isBetterCost;
+				}
+			}
+			return bestCost;
+		}
+
+		float CalculateNodeCost(const BVHNode& node) const
+		{
+			const Vector3 boxSize{ node.aabbMax - node.aabbMin };
+			const float parentArea{ boxSize.x * boxSize.y + boxSize.y * boxSize.z + boxSize.z * boxSize.x };
+			return node.indicesCount * parentArea;
+		}
+
+		float EvaluateSAH(BVHNode& node, int axis, float pos) const
+		{
+			AABB leftBox{};
+			AABB rightBox{};
+			int leftCount{};
+			int rightCount{};
+
+			for (unsigned int i{}; i < node.indicesCount; ++i)
+			{
+				const Vector3& v0{ transformedPositions[indices[node.firstIndice + i]] };
+				const Vector3& v1{ transformedPositions[indices[node.firstIndice + i + 1]] };
+				const Vector3& v2{ transformedPositions[indices[node.firstIndice + i + 2]] };
+
+				const Vector3 centroid{ (v0 + v1 + v2) / 3.0f };
+
+				if (centroid[axis] < pos)
+				{
+					leftCount++;
+					leftBox.Grow(v0);
+					leftBox.Grow(v1);
+					leftBox.Grow(v2);
+				}
+				else
+				{
+					rightCount++;
+					rightBox.Grow(v0);
+					rightBox.Grow(v1);
+					rightBox.Grow(v2);
+				}
+			}
+			float cost{ leftCount * leftBox.GetArea() + rightCount * rightBox.GetArea() };
+			return cost > 0 ? cost : FLT_MAX;
+		}
 	};
 #pragma endregion
 #pragma region LIGHT
@@ -238,8 +509,16 @@ namespace dae
 #pragma region MISC
 	struct Ray
 	{
+		Ray(const Vector3& _origin, const Vector3& _direction)
+			: origin{ _origin }
+			, direction{ _direction }
+			, inversedDirection{ Vector3{ 1.0f / _direction.x,  1.0f / _direction.y,  1.0f / _direction.z } }
+		{
+
+		}
 		Vector3 origin{};
 		Vector3 direction{};
+		Vector3 inversedDirection{};
 
 		float min{ 0.0001f };
 		float max{ FLT_MAX };

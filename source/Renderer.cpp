@@ -116,7 +116,7 @@ void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Ca
 	rayDirection.Normalize();
 
 	// Create a ray from the camera to the raster
-	const Ray viewRay{ camera.origin, rayDirection };
+	Ray viewRay{ camera.origin, rayDirection };
 
 	// Initialize the pixel color (default = black)
 	ColorRGB finalColor{ };
