@@ -414,18 +414,27 @@ namespace dae {
 
 		m_pMeshes[0] = AddTriangleMesh(TriangleCullMode::BackFaceCulling, matLambert_White);
 		m_pMeshes[0]->AppendTriangle(baseTriangle, true);
+#ifdef USE_BVH
+		m_pMeshes[0]->pBvhNodes = new BVHNode[m_pMeshes[0]->indices.size()]{};
+#endif
 		m_pMeshes[0]->Translate({ -1.75f, 4.5f, 0.0f });
 		m_pMeshes[0]->UpdateAABB();
 		m_pMeshes[0]->UpdateTransforms();
 
 		m_pMeshes[1] = AddTriangleMesh(TriangleCullMode::FrontFaceCulling, matLambert_White);
 		m_pMeshes[1]->AppendTriangle(baseTriangle, true);
+#ifdef USE_BVH
+		m_pMeshes[1]->pBvhNodes = new BVHNode[m_pMeshes[1]->indices.size()]{};
+#endif
 		m_pMeshes[1]->Translate({ 0.0f, 4.5f, 0.0f });
 		m_pMeshes[1]->UpdateAABB();
 		m_pMeshes[1]->UpdateTransforms();
 
 		m_pMeshes[2] = AddTriangleMesh(TriangleCullMode::NoCulling, matLambert_White);
 		m_pMeshes[2]->AppendTriangle(baseTriangle, true);
+#ifdef USE_BVH
+		m_pMeshes[2]->pBvhNodes = new BVHNode[m_pMeshes[2]->indices.size()]{};
+#endif
 		m_pMeshes[2]->Translate({ 1.75f, 4.5f, 0.0f });
 		m_pMeshes[2]->UpdateAABB();
 		m_pMeshes[2]->UpdateTransforms();
@@ -466,8 +475,6 @@ namespace dae {
 		//Mesh
 		m_pMesh = AddTriangleMesh(TriangleCullMode::BackFaceCulling, matLambert_White);
 		Utils::ParseOBJ("Resources/lowpoly_bunny2.obj", m_pMesh->positions, m_pMesh->normals, m_pMesh->indices);
-
-		m_pMesh->pBvhNodes = new BVHNode[m_pMesh->indices.size()]{};
 
 		m_pMesh->Scale({ 2.0f, 2.0f, 2.0f });
 

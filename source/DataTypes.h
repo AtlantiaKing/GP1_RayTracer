@@ -5,6 +5,8 @@
 #include "Math.h"
 #include "vector"
 
+#define USE_BVH
+
 namespace dae
 {
 #pragma region GEOMETRY
@@ -136,7 +138,7 @@ namespace dae
 		std::vector<Vector3> transformedPositions{};
 		std::vector<Vector3> transformedNormals{};
 
-		BVHNode* pBvhNodes;
+		BVHNode* pBvhNodes{};
 		unsigned int rootBvhNodeIdx{};
 		unsigned int bvhNodesUsed{};
 
@@ -224,7 +226,9 @@ namespace dae
 
 			UpdateTransformedAABB(finalTranformation);
 
+#ifdef USE_BVH
 			UpdateBVH();
+#endif
 		}
 
 		void UpdateTransformedAABB(const Matrix& finalTransform)
@@ -266,20 +270,10 @@ namespace dae
 			transformedMaxAABB = tMaxAABB;
 		}
 
-		void BuildBVH()
-		{
-			BVHNode& root = pBvhNodes[rootBvhNodeIdx];
-			root.leftChild = 0;
-			root.firstIndice = 0;
-			root.indicesCount = static_cast<unsigned int>(indices.size());
-
-			UpdateBVHNodeBounds(rootBvhNodeIdx);
-
-			Subdivide(rootBvhNodeIdx);
-		}
-
 		void UpdateBVH()
 		{
+			if(!pBvhNodes) pBvhNodes = new BVHNode[indices.size()]{};
+
 			bvhNodesUsed = 0;
 
 			BVHNode& root = pBvhNodes[rootBvhNodeIdx];
@@ -299,7 +293,7 @@ namespace dae
 			node.aabbMin = Vector3::One * FLT_MAX;
 			node.aabbMax = Vector3::One * FLT_MIN;
 
-			for (size_t i = node.firstIndice; i < node.firstIndice + node.indicesCount; ++i)
+			for (unsigned int i{ node.firstIndice }; i < node.firstIndice + node.indicesCount; ++i)
 			{
 				Vector3& curVertex{ transformedPositions[indices[i]] };
 				node.aabbMin = Vector3::Min(node.aabbMin, curVertex);
@@ -385,7 +379,7 @@ namespace dae
 					boundsMax = std::max(centroid[curAxis], boundsMin);
 				}
 
-				if (boundsMin - boundsMax < FLT_EPSILON && boundsMin - boundsMax > -FLT_EPSILON) continue;
+				if (abs(boundsMin - boundsMax) < FLT_EPSILON) continue;
 
 				const int nrBins{ 8 };
 

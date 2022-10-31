@@ -125,60 +125,59 @@ void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Ca
 	HitRecord closestHit{ };
 	pScene->GetClosestHit(viewRay, closestHit);
 
-	// If the ray hits anything, set finalColor to the hit material color
-	if (closestHit.didHit)
+	// If the ray does not hit anything, stop the function
+	if (!closestHit.didHit) return;
+
+	// Offset the origin point to avoid hitting the same object again
+	const Vector3 offsetPosition{ closestHit.origin + closestHit.normal * 0.001f };
+
+	// For every light
+	for (const Light& light : lights)
 	{
-		// For every light
-		for (const Light& light : lights)
+		// Calculate the direction between the point to the light position
+		Vector3 lightDirection{ LightUtils::GetDirectionToLight(light, offsetPosition) };
+
+		// Calculate the distance between the point and the light and normalize the light direction
+		const float lightDistance{ lightDirection.Normalize() };
+
+		if (m_AreShadowsEnabled)
 		{
-			// Offset the origin point to avoid hitting the same object again
-			const Vector3 offsetPosition{ closestHit.origin + closestHit.normal * 0.001f };
+			// Create a ray from the point to the light position
+			Ray lightRay{ offsetPosition, lightDirection };
+			// Set the max of the ray to the distance between the light and the point; 
+			//		otherwise the ray will always hit something (e.g. a infinite plane)
+			lightRay.max = lightDistance;
 
-			// Calculate the direction between the point to the light position
-			Vector3 lightDirection{ LightUtils::GetDirectionToLight(light, offsetPosition) };
-
-			// Calculate the distance between the point and the light and normalize the light direction
-			const float lightDistance{ lightDirection.Normalize() };
-
-			if (m_AreShadowsEnabled)
+			// If there is shadow: Darken the pixel and continue on to the next pixel
+			if (pScene->DoesHit(lightRay))
 			{
-				// Create a ray from the point to the light position
-				Ray lightRay{ offsetPosition, lightDirection };
-				// Set the max of the ray to the distance between the light and the point; 
-				//		otherwise the ray will always hit something (e.g. a infinite plane)
-				lightRay.max = lightDistance;
-
-				// If there is shadow: Darken the pixel and continue on to the next pixel
-				if (pScene->DoesHit(lightRay))
-				{
-					continue;
-				}
+				continue;
 			}
+		}
 
-			const float lightNormalAngle{ std::max(Vector3::Dot(closestHit.normal, lightDirection), 0.0f) };
+		const float lightNormalAngle{ std::max(Vector3::Dot(closestHit.normal, lightDirection), 0.0f) };
 
-			switch (m_CurrentLightingMode)
-			{
-			case LightingMode::ObservedArea:	// Only show Lambert Cosine Law 
-				finalColor += ColorRGB{ lightNormalAngle, lightNormalAngle, lightNormalAngle };
-				break;
-			case LightingMode::Radiance:		// Only show Radiance
-				finalColor += LightUtils::GetRadiance(light, closestHit.origin);
-				break;
-			case LightingMode::BRDF:			// Only show BRDF of a material
-			{
-				const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
-				finalColor += brdf;
-			}
+		switch (m_CurrentLightingMode)
+		{
+		case LightingMode::ObservedArea:	// Only show Lambert Cosine Law 
+			finalColor += ColorRGB{ lightNormalAngle, lightNormalAngle, lightNormalAngle };
 			break;
-			case LightingMode::Combined:		// Show everything combined (default)
-			{
-				const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
-				const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
-				finalColor += radiance * brdf * lightNormalAngle;
-			}
+		case LightingMode::Radiance:		// Only show Radiance
+			finalColor += LightUtils::GetRadiance(light, closestHit.origin);
 			break;
-			}
+		case LightingMode::BRDF:			// Only show BRDF of a material
+		{
+			const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
+			finalColor += brdf;
+		}
+		break;
+		case LightingMode::Combined:		// Show everything combined (default)
+		{
+			const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
+			const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
+			finalColor += radiance * brdf * lightNormalAngle;
+		}
+		break;
 		}
 	}
 

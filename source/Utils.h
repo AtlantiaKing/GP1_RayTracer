@@ -5,6 +5,9 @@
 #include "DataTypes.h"
 
 #define MAYA_IMPORT
+#define USE_BVH
+#define USE_MOLLERTRUMBORE
+//#define USE_ANALYTIC_SPHERE
 
 namespace dae
 {
@@ -14,14 +17,14 @@ namespace dae
 		//SPHERE HIT-TESTS
 		inline bool HitTest_Sphere(const Sphere& sphere, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-#pragma region Sphere HitTest Analytic
+#ifdef USE_ANALYTIC_SPHERE
 			// Analytic
 
-			// Calculate a vector from the origin of the 
+			// Calculate a vector from the origin of the ray to the sphere origin
 			const Vector3 raySphereVector{ ray.origin - sphere.origin };
 
 			// Calculate all parts of the quadratic formula
-			const float a{ Vector3::Dot(ray.direction, ray.direction) };
+			const float a{ /*Vector3::Dot(ray.direction, ray.direction)*/ 1.0f };
 			const float b{ Vector3::Dot(2.0f * ray.direction, raySphereVector) };
 			const float c{ Vector3::Dot(raySphereVector, raySphereVector) - Square(sphere.radius) };
 
@@ -42,7 +45,7 @@ namespace dae
 			const float discriminantDivisor{ 1.0f / (2.0f * a) };
 
 			// Calculate both hit point distances and use the smallest
-			t = (-b - sqrtDiscriminant)  * discriminantDivisor;
+			t = (-b - sqrtDiscriminant) * discriminantDivisor;
 			if (t < ray.min || t > ray.max)
 			{
 				t = (-b + sqrtDiscriminant) * discriminantDivisor;
@@ -64,76 +67,54 @@ namespace dae
 			const Vector3 hitNormal{ sphere.origin, hitPoint };
 
 			// Set the hit record to the calculated information
-			hitRecord.normal = hitNormal.Normalized();
+			hitRecord.normal = hitNormal;
 			hitRecord.origin = hitPoint;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = sphere.materialIndex;
 			hitRecord.t = t;
 
 			return true;
-#pragma endregion
+#else
+			// Geometric
 
-#pragma region Sphere HitTest Geometric
-			//// Geometric
-			//
-			//// Calculate the vector from the ray to the sphere
-			//const Vector3 raySphereVector{ sphere.origin - ray.origin };
-			//// Project the vector from ray to the sphere on the ray
-			//const Vector3 projectedRaySphereVector{ Vector3::Project(raySphereVector, ray.direction) };
-			//// Calculate the distance between the origin of the sphere and the projected origin of the sphere on the ray
-			//const Vector3 sphereRayDistanceVector{ raySphereVector - projectedRaySphereVector };
-			//const float sphereRayDistanceSqr{ sphereRayDistanceVector.SqrMagnitude() };
-			//// Calculate the distance between the projected origin of the sphere and the hit point on the circle
-			//const float rayHitDistanceInCirlceSqr{ Square(sphere.radius) - sphereRayDistanceSqr };
+			// Calculate a vector from the origin of the ray to the sphere origin
+			const Vector3 raySphereVector{ sphere.origin - ray.origin };
 
-			//// If squared distance is less then zero, nothing is hit
-			//if (rayHitDistanceInCirlceSqr < 0)
-			//{
-			//	return false;
-			//}
+			const float raySphereDistanceSqr{ raySphereVector.SqrMagnitude() };										// ||RaySphere||²
+			const float raySphereDistanceProjectedOnRay{ Vector3::Dot(raySphereVector, ray.direction) };		// ||RaySphere||*cos(angle)
 
-			//if (!ignoreHitRecord)
-			//{
-			//	// Calculate the distance from the ray origin to the ray hit point
+			const float raySpherePerpendicularDistanceSqr{ raySphereDistanceSqr - Square(raySphereDistanceProjectedOnRay) };	// (1-cos(angle)²)*||raysphere||² = (sin(angle)*||raysphere||)²
 
-			//	// Calculate the distance from the projected origin of the circle to the ray origin
-			//	const float projectedRaySphereDistance{ projectedRaySphereVector.Magnitude() };
+			if (Square(sphere.radius) < raySpherePerpendicularDistanceSqr) return false;
 
-			//	float rayDistance{ };
-			//	// If the distance between the hit point and the projected origin is zero, the projected origin IS the hit point
-			//	// Else, calculate both hit point distances and use the smallest
-			//	if (rayHitDistanceInCirlceSqr < FLT_EPSILON)
-			//	{
-			//		rayDistance = projectedRaySphereDistance;
-			//	}
-			//	else
-			//	{
-			//		const float rayHitDistanceInCirlce{ sqrt(rayHitDistanceInCirlceSqr) };
-			//		const float t1{ projectedRaySphereDistance - rayHitDistanceInCirlce };
-			//		const float t2{ projectedRaySphereDistance + rayHitDistanceInCirlce };
-			//		rayDistance = (t1 < t2&& t1 >= 0) ? t1 : t2;
-			//	}
-			//
-			//	// If the raydistance is less then zero, nothing is visible
-			//	if (rayDistance < 0)
-			//	{
-			//		return false;
-			//	}
-			//	
-			//	// Calculate the normal of the hit point
-			//	const Vector3 hitPoint{ ray.origin + ray.direction * rayDistance };
-			//	const Vector3 hitNormal{ sphere.origin, hitPoint };
-			//
-			//	// Set the hit record to the calculated information
-			//	hitRecord.normal = hitNormal.Normalized();
-			//	hitRecord.origin = ray.origin;
-			//	hitRecord.didHit = true;
-			//	hitRecord.materialIndex = sphere.materialIndex;
-			//	hitRecord.t = rayDistance;
-			//}
+			const float sphereHitPointDistance{ sqrtf(Square(sphere.radius) - raySpherePerpendicularDistanceSqr) };	// Pythagorean Theorem in a circle
 
-			//return true;
-#pragma endregion
+			// Calculate the hit point distance in front of the camera
+			float t = raySphereDistanceProjectedOnRay - sphereHitPointDistance;
+			if (t < ray.min || t > ray.max)
+			{
+				return false;
+			}
+
+			// If no hitrecord needs to be calculated, return true
+			if (ignoreHitRecord)
+			{
+				return true;
+			}
+
+			// Calculate the normal of the hit point
+			const Vector3 hitPoint{ ray.origin + ray.direction * t };
+			const Vector3 hitNormal{ sphere.origin, hitPoint };
+
+			// Set the hit record to the calculated information
+			hitRecord.normal = hitNormal;
+			hitRecord.origin = hitPoint;
+			hitRecord.didHit = true;
+			hitRecord.materialIndex = sphere.materialIndex;
+			hitRecord.t = t;
+
+			return true;
+#endif
 		}
 
 		inline bool HitTest_Sphere(const Sphere& sphere, const Ray& ray)
@@ -167,9 +148,9 @@ namespace dae
 			// Set the hit record to the calculated information
 			hitRecord.normal = plane.normal;
 			hitRecord.origin = ray.origin + ray.direction * t;
-			hitRecord.t = t;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = plane.materialIndex;
+			hitRecord.t = t;
 
 			return true;
 		}
@@ -198,7 +179,7 @@ namespace dae
 			const float viewNormalDot{ Vector3::Dot(ray.direction, triangle.normal) };
 
 			// If the camera looks perpendicular on the normal, the triangle is not visible
-			if (viewNormalDot > -FLT_EPSILON && viewNormalDot < FLT_EPSILON) return false;
+			if (abs(viewNormalDot) < FLT_EPSILON) return false;
 
 			// Get the correct current cullmode (the cullmode needs to be flipped for shadow rays)
 			TriangleCullMode curCullMode{ triangle.cullMode };
@@ -226,6 +207,7 @@ namespace dae
 				break;
 			}
 
+#ifdef USE_MOLLERTRUMBORE
 			// Source: https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
 
 			// Calculate the edges of the triangle
@@ -254,51 +236,52 @@ namespace dae
 			// If hit records needs to be ignored, just return true
 			if (ignoreHitRecord) return true;
 
-			hitRecord.t = t;
-			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.normal = triangle.normal;
-			hitRecord.materialIndex = triangle.materialIndex;
+			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.didHit = true;
+			hitRecord.materialIndex = triangle.materialIndex;
+			hitRecord.t = t;
 
 			return true;
+#else
+			// Calculate the center of the triangle
+			Vector3 center{ (triangle.v0 + triangle.v1 + triangle.v2) / 3.0f };
+			
+			// Calculate a vector from the camera to the triangle
+			const Vector3 planeRayDistance{ center - ray.origin };
 
-			//// Calculate the center of the triangle
-			//Vector3 center{ (triangle.v0 + triangle.v1 + triangle.v2) / 3.0f };
-			//
-			//// Calculate a vector from the camera to the triangle
-			//const Vector3 planeRayDistance{ center - ray.origin };
+			// Calculate the distance from ray hit
+			const float t = Vector3::Dot(planeRayDistance, triangle.normal) / viewNormalDot;
 
-			//// Calculate the distance from ray hit
-			//const float t = Vector3::Dot(planeRayDistance, triangle.normal) / viewNormalDot;
+			// If the distance is less then zero; the triangle is not visible
+			if (t < ray.min || t > ray.max)
+			{
+				return false;
+			}
 
-			//// If the distance is less then zero; the triangle is not visible
-			//if (t < ray.min || t > ray.max)
-			//{
-			//	return false;
-			//}
+			// Calculate the hit point on the triangle
+			Vector3 hitPoint{ ray.origin + ray.direction * t };
 
-			//// Calculate the hit point on the triangle
-			//Vector3 hitPoint{ ray.origin + ray.direction * t };
+			// Make sure that the hit point is inside the triangle by checking its location compared to the edges
+			//		If point is not in triangle, return false
+			if(!(IsToRightSideOfEdge(hitPoint, triangle.v0, triangle.v1, triangle.normal)
+				&& IsToRightSideOfEdge(hitPoint, triangle.v1, triangle.v2, triangle.normal)
+				&& IsToRightSideOfEdge(hitPoint, triangle.v2, triangle.v0, triangle.normal)))
+			{
+				return false;
+			}
 
-			//// Make sure that the hit point is inside the triangle by checking its location compared to the edges
-			////		If point is not in triangle, return false
-			//if(!(IsToRightSideOfEdge(hitPoint, triangle.v0, triangle.v1, triangle.normal)
-			//	&& IsToRightSideOfEdge(hitPoint, triangle.v1, triangle.v2, triangle.normal)
-			//	&& IsToRightSideOfEdge(hitPoint, triangle.v2, triangle.v0, triangle.normal)))
-			//{
-			//	return false;
-			//}
+			// If hit records needs to be ignored, just return true
+			if (ignoreHitRecord) return true;
 
-			//// If hit records needs to be ignored, just return true
-			//if (ignoreHitRecord) return true;
+			hitRecord.normal = triangle.normal;
+			hitRecord.origin = ray.origin + ray.direction * t;
+			hitRecord.didHit = true;
+			hitRecord.materialIndex = triangle.materialIndex;
+			hitRecord.t = t;
 
-			//hitRecord.t = t;
-			//hitRecord.origin = hitPoint;
-			//hitRecord.normal = triangle.normal;
-			//hitRecord.materialIndex = triangle.materialIndex;
-			//hitRecord.didHit = true;
-
-			//return true;
+			return true;
+#endif
 		}
 
 		inline bool HitTest_Triangle(const Triangle& triangle, const Ray& ray)
@@ -349,7 +332,7 @@ namespace dae
 				triangle.materialIndex = mesh.materialIndex;
 
 				// For each triangle
-				for (unsigned int triangleIdx{}; triangleIdx < node.indicesCount; triangleIdx += 3)
+				for (int triangleIdx{}; triangleIdx < node.indicesCount; triangleIdx += 3)
 				{
 					// Set the position and normal of the current triangle to the triangle object
 					triangle.v0 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx]];
@@ -382,45 +365,48 @@ namespace dae
 
 		inline bool HitTest_TriangleMesh(const TriangleMesh& mesh, const Ray& ray, HitRecord& hitRecord, bool ignoreHitRecord = false)
 		{
-			//// Slabtest
-			//if (!SlabTest(ray, mesh.transformedMinAABB, mesh.transformedMaxAABB))	return false;
-
+#ifndef USE_BVH
+			// Slabtest
+			if (!SlabTest(ray, mesh.transformedMinAABB, mesh.transformedMaxAABB)) return false;
+#endif
 			// Current closest hit
 			HitRecord tempHit{};
 			bool hasHit{};
 
+#ifdef USE_BVH
 			IntersectBVH(mesh, ray, hitRecord, hasHit, tempHit, ignoreHitRecord, 0);
+#else
+			// Create a triangle object that is shared for all triangles
+			Triangle triangle{};
 
-			//// Create a triangle object that is shared for all triangles
-			//Triangle triangle{};
+			// Apply the mesh cullmode and material to the triangle
+			triangle.cullMode = mesh.cullMode;
+			triangle.materialIndex = mesh.materialIndex;
 
-			//// Apply the mesh cullmode and material to the triangle
-			//triangle.cullMode = mesh.cullMode;
-			//triangle.materialIndex = mesh.materialIndex;
+			// For each triangle
+			for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
+			{
+				// Set the position and normal of the current triangle to the triangle object
+				triangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
+				triangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
+				triangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
+				triangle.normal = mesh.transformedNormals[triangleIdx / 3];
 
-			//// For each triangle
-			//for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
-			//{
-			//	// Set the position and normal of the current triangle to the triangle object
-			//	triangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
-			//	triangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
-			//	triangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
-			//	triangle.normal = mesh.transformedNormals[triangleIdx / 3];
+				// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
+				if (HitTest_Triangle(triangle, ray, tempHit, ignoreHitRecord))
+				{
+					// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
+					if (ignoreHitRecord) return true;
 
-			//	// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
-			//	if (HitTest_Triangle(triangle, ray, tempHit, ignoreHitRecord))
-			//	{
-			//		// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
-			//		if (ignoreHitRecord) return true;
-
-			//		// Check if the current hit is closer then the previous hit
-			//		if (hitRecord.t > tempHit.t)
-			//		{
-			//			hitRecord = tempHit;
-			//		}
-			//		hasHit = true;
-			//	}
-			//}
+					// Check if the current hit is closer then the previous hit
+					if (hitRecord.t > tempHit.t)
+					{
+						hitRecord = tempHit;
+					}
+					hasHit = true;
+				}
+			}
+#endif
 
 			return hasHit;
 		}
