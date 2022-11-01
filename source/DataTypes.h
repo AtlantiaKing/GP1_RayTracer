@@ -5,7 +5,7 @@
 #include "Math.h"
 #include "vector"
 
-#define USE_BVH
+//#define USE_BVH
 
 namespace dae
 {
@@ -224,10 +224,10 @@ namespace dae
 				transformedNormals[i] = normalTranformation.TransformVector(normals[i]);
 			}
 
-			UpdateTransformedAABB(finalTranformation);
-
 #ifdef USE_BVH
 			UpdateBVH();
+#else
+			UpdateTransformedAABB(finalTranformation);
 #endif
 		}
 
@@ -376,7 +376,7 @@ namespace dae
 				{
 					const Vector3 centroid{ (transformedPositions[indices[node.firstIndice + i]] + transformedPositions[indices[node.firstIndice + i + 1]] + transformedPositions[indices[node.firstIndice + i + 2]]) / 3.0f };
 					boundsMin = std::min(centroid[curAxis], boundsMin);
-					boundsMax = std::max(centroid[curAxis], boundsMin);
+					boundsMax = std::max(centroid[curAxis], boundsMax);
 				}
 
 				if (abs(boundsMin - boundsMax) < FLT_EPSILON) continue;
@@ -398,9 +398,12 @@ namespace dae
 					int binIdx{ std::min(nrBins - 1, static_cast<int>((centroid[curAxis] - boundsMin) * scale)) };
 
 					bins[binIdx].indicesCount += 3;
+					float areaBeforeGrow{ bins[binIdx].bounds.GetArea() };
 					bins[binIdx].bounds.Grow(v0);
 					bins[binIdx].bounds.Grow(v1);
 					bins[binIdx].bounds.Grow(v2);
+					float area{ bins[binIdx].bounds.max.x };
+					int dada = 0;
 				}
 
 				float leftArea[nrBins - 1]{};
@@ -408,8 +411,8 @@ namespace dae
 				float leftCount[nrBins - 1]{};
 				float rightCount[nrBins - 1]{};
 
-				AABB leftBox{};
-				AABB rightBox{};
+				AABB leftBox;
+				AABB rightBox;
 				float leftSum{};
 				float rightSum{};
 
@@ -432,10 +435,12 @@ namespace dae
 				{
 					const float planeCost{ leftCount[i] * leftArea[i] + rightCount[i] * rightArea[i] };
 
-					bool isBetterCost{ planeCost < bestCost };
-					splitPos = (boundsMin + scale * (i+1)) * isBetterCost + splitPos * !isBetterCost;
-					axis = curAxis * isBetterCost + axis * !isBetterCost;
-					bestCost = planeCost * isBetterCost + bestCost * !isBetterCost;
+					if (planeCost < bestCost)
+					{
+						splitPos = boundsMin + scale * (i + 1);
+						axis = curAxis;
+						bestCost = planeCost;
+					}
 				}
 			}
 			return bestCost;
@@ -510,6 +515,16 @@ namespace dae
 		{
 
 		}
+		Ray(const Vector3& _origin, const Vector3& _direction, float _min, float _max)
+			: origin{ _origin }
+			, direction{ _direction }
+			, inversedDirection{ Vector3{ 1.0f / _direction.x,  1.0f / _direction.y,  1.0f / _direction.z } }
+			, min{ _min }
+			, max{ _max }
+		{
+
+		}
+
 		Vector3 origin{};
 		Vector3 direction{};
 		Vector3 inversedDirection{};

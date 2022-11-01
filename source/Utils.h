@@ -4,8 +4,8 @@
 #include "Math.h"
 #include "DataTypes.h"
 
-#define MAYA_IMPORT
-#define USE_BVH
+//#define MAYA_IMPORT
+//#define USE_BVH
 #define USE_MOLLERTRUMBORE
 //#define USE_ANALYTIC_SPHERE
 
@@ -67,7 +67,7 @@ namespace dae
 			const Vector3 hitNormal{ sphere.origin, hitPoint };
 
 			// Set the hit record to the calculated information
-			hitRecord.normal = hitNormal;
+			hitRecord.normal = hitNormal.Normalized();
 			hitRecord.origin = hitPoint;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = sphere.materialIndex;
@@ -107,10 +107,10 @@ namespace dae
 			const Vector3 hitNormal{ sphere.origin, hitPoint };
 
 			// Set the hit record to the calculated information
-			hitRecord.normal = hitNormal;
-			hitRecord.origin = hitPoint;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = sphere.materialIndex;
+			hitRecord.origin = hitPoint;
+			hitRecord.normal = hitNormal.Normalized();
 			hitRecord.t = t;
 
 			return true;
@@ -146,10 +146,10 @@ namespace dae
 			}
 
 			// Set the hit record to the calculated information
-			hitRecord.normal = plane.normal;
-			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = plane.materialIndex;
+			hitRecord.origin = ray.origin + ray.direction * t;
+			hitRecord.normal = plane.normal;
 			hitRecord.t = t;
 
 			return true;
@@ -236,10 +236,10 @@ namespace dae
 			// If hit records needs to be ignored, just return true
 			if (ignoreHitRecord) return true;
 
-			hitRecord.normal = triangle.normal;
-			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = triangle.materialIndex;
+			hitRecord.origin = ray.origin + ray.direction * t;
+			hitRecord.normal = triangle.normal;
 			hitRecord.t = t;
 
 			return true;
@@ -351,7 +351,11 @@ namespace dae
 						// Check if the current hit is closer then the previous hit
 						if (hitRecord.t > curClosestHit.t)
 						{
-							hitRecord = curClosestHit;
+							hitRecord.didHit = curClosestHit.didHit;
+							hitRecord.materialIndex = curClosestHit.materialIndex;
+							hitRecord.origin = curClosestHit.origin;
+							hitRecord.normal = curClosestHit.normal;
+							hitRecord.t = curClosestHit.t;
 						}
 					}
 				}
@@ -372,7 +376,6 @@ namespace dae
 			// Current closest hit
 			HitRecord tempHit{};
 			bool hasHit{};
-
 #ifdef USE_BVH
 			IntersectBVH(mesh, ray, hitRecord, hasHit, tempHit, ignoreHitRecord, 0);
 #else
@@ -429,8 +432,7 @@ namespace dae
 			case LightType::Directional:
 				return -light.direction;
 			case LightType::Point:
-				const Vector3 lightDirection{ light.origin - origin };
-				return lightDirection;
+				return light.origin - origin;
 			}
 
 			// If no light type is matched; return a zero Vector3

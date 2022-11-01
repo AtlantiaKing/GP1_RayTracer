@@ -63,8 +63,7 @@ namespace dae
 		static float NormalDistribution_GGX(const Vector3& n, const Vector3& h, float roughness)
 		{
 			const float alpha{ Square(roughness) };
-
-			return Square(alpha) / (PI * Square(Square(Vector3::Dot(n,h)) * (Square(alpha) - 1) + 1));
+			return Square(alpha) / (PI * Square(Square(Vector3::Dot(n,h)) * (Square(alpha) - 1.0f) + 1.0f));
 		}
 
 
@@ -80,7 +79,7 @@ namespace dae
 			const float alpha{ Square(roughness) };
 			const float k{ Square(alpha + 1.0f) / 8.0f };
 			const float dot{ std::max(Vector3::Dot(n,v), 0.0f) };
-			return dot / (dot * (1-k) + k);
+			return dot / (dot * (1.0f-k) + k);
 		}
 
 		/**

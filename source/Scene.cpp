@@ -39,7 +39,11 @@ namespace dae {
 				// If the current hit point is closer that the previous hit point, overwrite
 				if (closestHit.t > tempHit.t)
 				{
-					closestHit = tempHit;
+					closestHit.didHit = tempHit.didHit;
+					closestHit.materialIndex = tempHit.materialIndex;
+					closestHit.origin = tempHit.origin;
+					closestHit.normal = tempHit.normal;
+					closestHit.t = tempHit.t;
 				}
 			}
 		}
@@ -54,7 +58,11 @@ namespace dae {
 				// Else only set closestHit if the current hit point is closer that the previous hit point
 				if (closestHit.t > tempHit.t)
 				{
-					closestHit = tempHit;
+					closestHit.didHit = tempHit.didHit;
+					closestHit.materialIndex = tempHit.materialIndex;
+					closestHit.origin = tempHit.origin;
+					closestHit.normal = tempHit.normal;
+					closestHit.t = tempHit.t;
 				}
 			}
 		}
@@ -69,7 +77,11 @@ namespace dae {
 				// Else only set closestHit if the current hit point is closer that the previous hit point
 				if (closestHit.t > tempHit.t)
 				{
-					closestHit = tempHit;
+					closestHit.didHit = tempHit.didHit;
+					closestHit.materialIndex = tempHit.materialIndex;
+					closestHit.origin = tempHit.origin;
+					closestHit.normal = tempHit.normal;
+					closestHit.t = tempHit.t;
 				}
 			}
 		}
@@ -204,7 +216,7 @@ namespace dae {
 #pragma region SCENE W1
 	void Scene_W1::Initialize()
 	{
-				//default: Material id0 >> SolidColor Material (RED)
+		//default: Material id0 >> SolidColor Material (RED)
 		constexpr unsigned char matId_Solid_Red = 0;
 		const unsigned char matId_Solid_Blue = AddMaterial(new Material_SolidColor{ colors::Blue });
 
@@ -478,7 +490,9 @@ namespace dae {
 
 		m_pMesh->Scale({ 2.0f, 2.0f, 2.0f });
 
+#ifndef USE_BVH
 		m_pMesh->UpdateAABB();
+#endif
 		m_pMesh->UpdateTransforms();
 
 		//Light
