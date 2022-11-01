@@ -212,16 +212,18 @@ namespace dae
 			const Matrix finalTranformation{ scaleTransform * rotationTransform * translationTransform };
 			const Matrix normalTranformation{ rotationTransform * translationTransform };
 
-			transformedPositions.resize(positions.size());
+			transformedPositions.clear();
+			transformedPositions.reserve(positions.size());
 			for (int i = 0; i < positions.size(); ++i)
 			{
-				transformedPositions[i] = finalTranformation.TransformPoint(positions[i]);
+				transformedPositions.emplace_back(finalTranformation.TransformPoint(positions[i]));
 			}
 
-			transformedNormals.resize(normals.size());
+			transformedNormals.clear();
+			transformedNormals.reserve(normals.size());
 			for (int i = 0; i < normals.size(); ++i)
 			{
-				transformedNormals[i] = normalTranformation.TransformVector(normals[i]);
+				transformedNormals.emplace_back(normalTranformation.TransformVector(normals[i]));
 			}
 
 #ifdef USE_BVH
