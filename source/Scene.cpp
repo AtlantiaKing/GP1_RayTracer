@@ -39,11 +39,7 @@ namespace dae {
 				// If the current hit point is closer that the previous hit point, overwrite
 				if (closestHit.t > tempHit.t)
 				{
-					closestHit.didHit = tempHit.didHit;
-					closestHit.materialIndex = tempHit.materialIndex;
-					closestHit.origin = tempHit.origin;
-					closestHit.normal = tempHit.normal;
-					closestHit.t = tempHit.t;
+					closestHit = tempHit;
 				}
 			}
 		}
@@ -58,11 +54,7 @@ namespace dae {
 				// Else only set closestHit if the current hit point is closer that the previous hit point
 				if (closestHit.t > tempHit.t)
 				{
-					closestHit.didHit = tempHit.didHit;
-					closestHit.materialIndex = tempHit.materialIndex;
-					closestHit.origin = tempHit.origin;
-					closestHit.normal = tempHit.normal;
-					closestHit.t = tempHit.t;
+					closestHit = tempHit;
 				}
 			}
 		}
@@ -77,11 +69,7 @@ namespace dae {
 				// Else only set closestHit if the current hit point is closer that the previous hit point
 				if (closestHit.t > tempHit.t)
 				{
-					closestHit.didHit = tempHit.didHit;
-					closestHit.materialIndex = tempHit.materialIndex;
-					closestHit.origin = tempHit.origin;
-					closestHit.normal = tempHit.normal;
-					closestHit.t = tempHit.t;
+					closestHit = tempHit;
 				}
 			}
 		}
@@ -488,7 +476,7 @@ namespace dae {
 		m_pMesh = AddTriangleMesh(TriangleCullMode::BackFaceCulling, matLambert_White);
 		Utils::ParseOBJ("Resources/lowpoly_bunny2.obj", m_pMesh->positions, m_pMesh->normals, m_pMesh->indices);
 
-		m_pMesh->Scale({ 2.0f, 2.0f, 2.0f });
+		m_pMesh->Scale({ 2.0f, 2.0f , 2.0f });
 
 #ifndef USE_BVH
 		m_pMesh->UpdateAABB();

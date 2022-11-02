@@ -5,7 +5,6 @@
 #include "DataTypes.h"
 
 //#define MAYA_IMPORT
-//#define USE_BVH
 #define USE_MOLLERTRUMBORE
 //#define USE_ANALYTIC_SPHERE
 
@@ -42,7 +41,7 @@ namespace dae
 			// Calculate the distance from the ray origin to the ray hit point
 			float t{ };
 
-			const float discriminantDivisor{ 1.0f / (2.0f * a) };
+			const float discriminantDivisor{ 1.0f / (2.0f * a)};
 
 			// Calculate both hit point distances and use the smallest
 			t = (-b - sqrtDiscriminant) * discriminantDivisor;
@@ -80,27 +79,29 @@ namespace dae
 			// Calculate a vector from the origin of the ray to the sphere origin
 			const Vector3 raySphereVector{ sphere.origin - ray.origin };
 
+			// Calculate the distance from the ray to the sphere
 			const float raySphereDistanceSqr{ raySphereVector.SqrMagnitude() };										// ||RaySphere||²
+
+			// Project the ray sphere distance on the ray direction
 			const float raySphereDistanceProjectedOnRay{ Vector3::Dot(raySphereVector, ray.direction) };		// ||RaySphere||*cos(angle)
 
+			// Project the ray sphere distance perpendicular on the ray direction
 			const float raySpherePerpendicularDistanceSqr{ raySphereDistanceSqr - Square(raySphereDistanceProjectedOnRay) };	// (1-cos(angle)²)*||raysphere||² = (sin(angle)*||raysphere||)²
 
+			// If (the radius of the sphere sqrd - raySpherePerpendicularDistanceSqr) is smaller then 0, then you can't do sqrt and the ray is not intersecting with the sphere
 			if (Square(sphere.radius) < raySpherePerpendicularDistanceSqr) return false;
 
+			// Calculate the distance from the sphere origin to the hit point
 			const float sphereHitPointDistance{ sqrtf(Square(sphere.radius) - raySpherePerpendicularDistanceSqr) };	// Pythagorean Theorem in a circle
 
-			// Calculate the hit point distance in front of the camera
+			// Calculate the distance between the ray origin and the hit point
 			float t = raySphereDistanceProjectedOnRay - sphereHitPointDistance;
-			if (t < ray.min || t > ray.max)
-			{
-				return false;
-			}
+
+			// If the hit point is further away then the accepted ray bounds, return false
+			if (t < ray.min || t > ray.max) return false;
 
 			// If no hitrecord needs to be calculated, return true
-			if (ignoreHitRecord)
-			{
-				return true;
-			}
+			if (ignoreHitRecord) return true;
 
 			// Calculate the normal of the hit point
 			const Vector3 hitPoint{ ray.origin + ray.direction * t };
@@ -134,16 +135,10 @@ namespace dae
 			const float t = Vector3::Dot(planeRayDistance, plane.normal) / Vector3::Dot(ray.direction, plane.normal);
 
 			// If the distance is less then zero; the plane is not visible
-			if (t < ray.min || t > ray.max)
-			{
-				return false;
-			}
+			if (t < ray.min || t > ray.max) return false;
 
 			// If no hitrecord needs to be calculated, return true
-			if (ignoreHitRecord)
-			{
-				return true;
-			}
+			if (ignoreHitRecord) return true;
 
 			// Set the hit record to the calculated information
 			hitRecord.didHit = true;
@@ -164,11 +159,16 @@ namespace dae
 #pragma region Triangle HitTest
 		inline bool IsToRightSideOfEdge(const Vector3& point, const Vector3& v0, const Vector3& v1, const Vector3& normal)
 		{
+			// Calculate the current edge
 			const Vector3 edge{ v1 - v0 };
+
+			// Calculate the vector between the first vertex and the point
 			const Vector3 startToPoint{ point - v0 };
 
+			// Calculate cross product from edge to start to point
 			const Vector3 edgePointCross{ Vector3::Cross(edge, startToPoint) };
 
+			// The point is to the right side of the edge if the cross product and the normal of the triangle are in the same direction (cos(angle) > 0)
 			return Vector3::Dot(edgePointCross, normal) > 0;
 		}
 
@@ -315,55 +315,45 @@ namespace dae
 			return tmax > 0 && tmax >= tmin;
 		}
 
-		inline void IntersectBVH(const TriangleMesh& mesh, const Ray& ray, HitRecord& hitRecord, bool& hasHit, HitRecord& curClosestHit, bool ignoreHitRecord, unsigned int bvhNodeIdx)
+		inline void IntersectBVH(const TriangleMesh& mesh, const Ray& ray, Triangle& sharedTriangle, HitRecord& hitRecord, bool& hasHit, HitRecord& curClosestHit, bool ignoreHitRecord, unsigned int bvhNodeIdx)
 		{
+			// Get the current node
 			BVHNode& node{ mesh.pBvhNodes[bvhNodeIdx] };
 
 			// Slabtest
 			if (!SlabTest(ray, node.aabbMin, node.aabbMax)) return;
 
-			if (node.IsLeaf())
+			// If the current node is not the end node, recursively search the two child nodes 
+			if (!node.IsLeaf())
 			{
-				// Create a triangle object that is shared for all triangles
-				Triangle triangle{};
-
-				// Apply the mesh cullmode and material to the triangle
-				triangle.cullMode = mesh.cullMode;
-				triangle.materialIndex = mesh.materialIndex;
-
-				// For each triangle
-				for (int triangleIdx{}; triangleIdx < node.indicesCount; triangleIdx += 3)
-				{
-					// Set the position and normal of the current triangle to the triangle object
-					triangle.v0 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx]];
-					triangle.v1 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx + 1]];
-					triangle.v2 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx + 2]];
-					triangle.normal = mesh.transformedNormals[(node.firstIndice + triangleIdx) / 3];
-
-					// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
-					if (HitTest_Triangle(triangle, ray, curClosestHit, ignoreHitRecord))
-					{
-						hasHit = true;
-
-						// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
-						if (ignoreHitRecord) return;
-
-						// Check if the current hit is closer then the previous hit
-						if (hitRecord.t > curClosestHit.t)
-						{
-							hitRecord.didHit = curClosestHit.didHit;
-							hitRecord.materialIndex = curClosestHit.materialIndex;
-							hitRecord.origin = curClosestHit.origin;
-							hitRecord.normal = curClosestHit.normal;
-							hitRecord.t = curClosestHit.t;
-						}
-					}
-				}
+				IntersectBVH(mesh, ray, sharedTriangle, hitRecord, hasHit, curClosestHit, ignoreHitRecord, node.leftChild);
+				IntersectBVH(mesh, ray, sharedTriangle, hitRecord, hasHit, curClosestHit, ignoreHitRecord, node.leftChild + 1);
+				return;
 			}
-			else
+
+			// For each triangle in the node
+			for (unsigned int triangleIdx{}; triangleIdx < node.indicesCount; triangleIdx += 3)
 			{
-				IntersectBVH(mesh, ray, hitRecord, hasHit, curClosestHit, ignoreHitRecord, node.leftChild);
-				IntersectBVH(mesh, ray, hitRecord, hasHit, curClosestHit, ignoreHitRecord, node.leftChild + 1);
+				// Set the position and normal of the current triangle to the triangle object
+				sharedTriangle.v0 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx]];
+				sharedTriangle.v1 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx + 1]];
+				sharedTriangle.v2 = mesh.transformedPositions[mesh.indices[node.firstIndice + triangleIdx + 2]];
+				sharedTriangle.normal = mesh.transformedNormals[(node.firstIndice + triangleIdx) / 3];
+
+				// If the ray doesn't a triangle in the mesh, continue to the next triangle
+				if (!HitTest_Triangle(sharedTriangle, ray, curClosestHit, ignoreHitRecord)) continue;
+
+				// If the ray hits a triangle, set hasHit to true
+				hasHit = true;
+
+				// If the hit records needs to be ignored, it doesn't matter if there is a triangle closer or not, so just return
+				if (ignoreHitRecord) return;
+
+				// Check if the current hit is closer then the previous hit
+				if (hitRecord.t > curClosestHit.t)
+				{
+					hitRecord = curClosestHit;
+				}
 			}
 		}
 
@@ -376,38 +366,41 @@ namespace dae
 			// Current closest hit
 			HitRecord tempHit{};
 			bool hasHit{};
-#ifdef USE_BVH
-			IntersectBVH(mesh, ray, hitRecord, hasHit, tempHit, ignoreHitRecord, 0);
-#else
+
 			// Create a triangle object that is shared for all triangles
-			Triangle triangle{};
+			Triangle tempTriangle{};
 
 			// Apply the mesh cullmode and material to the triangle
-			triangle.cullMode = mesh.cullMode;
-			triangle.materialIndex = mesh.materialIndex;
+			tempTriangle.cullMode = mesh.cullMode;
+			tempTriangle.materialIndex = mesh.materialIndex;
 
+#ifdef USE_BVH
+			// Search the BVH for the triangles closest to the ray and do hit tests with these
+			IntersectBVH(mesh, ray, tempTriangle, hitRecord, hasHit, tempHit, ignoreHitRecord, 0);
+#else
 			// For each triangle
 			for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
 			{
 				// Set the position and normal of the current triangle to the triangle object
-				triangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
-				triangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
-				triangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
-				triangle.normal = mesh.transformedNormals[triangleIdx / 3];
+				tempTriangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];
+				tempTriangle.v1 = mesh.transformedPositions[mesh.indices[triangleIdx + 1]];
+				tempTriangle.v2 = mesh.transformedPositions[mesh.indices[triangleIdx + 2]];
+				tempTriangle.normal = mesh.transformedNormals[triangleIdx / 3];
 
-				// If the ray hits a triangle in the mesh, check if it is closer then the previous hit triangle
-				if (HitTest_Triangle(triangle, ray, tempHit, ignoreHitRecord))
+				// If the ray doesn't a triangle in the mesh, continue to the next triangle
+				if (!HitTest_Triangle(tempTriangle, ray, tempHit, ignoreHitRecord)) continue;
+
+				// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
+				if (ignoreHitRecord) return true;
+
+				// Check if the current hit is closer then the previous hit
+				if (hitRecord.t > tempHit.t)
 				{
-					// If the hit records needs to be ignored, it doesn't matter where the triangle is, so just return true
-					if (ignoreHitRecord) return true;
-
-					// Check if the current hit is closer then the previous hit
-					if (hitRecord.t > tempHit.t)
-					{
-						hitRecord = tempHit;
-					}
-					hasHit = true;
+					hitRecord = tempHit;
 				}
+
+				// If the ray hits a triangle, set hasHit to true
+				hasHit = true;
 			}
 #endif
 
@@ -491,7 +484,7 @@ namespace dae
 				}
 				else if (sCommand == "f")
 				{
-					float i0{}, i1{}, i2{};
+					float i0, i1, i2;
 #if defined(MAYA_IMPORT)
 					std::string s0, s1, s2;
 					file >> s0 >> s1 >> s2;

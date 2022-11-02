@@ -154,15 +154,19 @@ void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Ca
 				}
 			}
 
-			const float lightNormalAngle{ std::max(Vector3::Dot(closestHit.normal, lightDirection), 0.0f) };
-
 			switch (m_CurrentLightingMode)
 			{
 			case LightingMode::ObservedArea:	// Only show Lambert Cosine Law 
+			{
+				const float lightNormalAngle{ std::max(Vector3::Dot(closestHit.normal, lightDirection), 0.0f) };
 				finalColor += ColorRGB{ lightNormalAngle, lightNormalAngle, lightNormalAngle };
+			}
 				break;
-			case LightingMode::Radiance:		// Only show Radiance
+			case LightingMode::Radiance:	
+			{
+				// Only show Radiance
 				finalColor += LightUtils::GetRadiance(light, closestHit.origin);
+			}
 				break;
 			case LightingMode::BRDF:			// Only show BRDF of a material
 			{
@@ -172,6 +176,7 @@ void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Ca
 			break;
 			case LightingMode::Combined:		// Show everything combined (default)
 			{
+				const float lightNormalAngle{ std::max(Vector3::Dot(closestHit.normal, lightDirection), 0.0f) };
 				const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
 				const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
 				finalColor += radiance * brdf * lightNormalAngle;

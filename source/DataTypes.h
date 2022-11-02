@@ -210,20 +210,20 @@ namespace dae
 		void UpdateTransforms()
 		{
 			const Matrix finalTranformation{ scaleTransform * rotationTransform * translationTransform };
-			const Matrix normalTranformation{ rotationTransform * translationTransform };
+			//const Matrix normalTranformation{ rotationTransform * translationTransform };
 
 			transformedPositions.clear();
 			transformedPositions.reserve(positions.size());
-			for (int i = 0; i < positions.size(); ++i)
+			for (const Vector3& position : positions)
 			{
-				transformedPositions.emplace_back(finalTranformation.TransformPoint(positions[i]));
+				transformedPositions.emplace_back(finalTranformation.TransformPoint(position));
 			}
 
 			transformedNormals.clear();
 			transformedNormals.reserve(normals.size());
-			for (int i = 0; i < normals.size(); ++i)
+			for (const Vector3& normal : normals)
 			{
-				transformedNormals.emplace_back(normalTranformation.TransformVector(normals[i]));
+				transformedNormals.emplace_back(finalTranformation.TransformVector(normal).Normalized());
 			}
 
 #ifdef USE_BVH
@@ -272,7 +272,7 @@ namespace dae
 			transformedMaxAABB = tMaxAABB;
 		}
 
-		void UpdateBVH()
+		inline void UpdateBVH()
 		{
 			if(!pBvhNodes) pBvhNodes = new BVHNode[indices.size()]{};
 
@@ -288,7 +288,7 @@ namespace dae
 			Subdivide(rootBvhNodeIdx);
 		}
 
-		void UpdateBVHNodeBounds(int nodeIdx)
+		inline void UpdateBVHNodeBounds(int nodeIdx)
 		{
 			BVHNode& node{ pBvhNodes[nodeIdx] };
 
@@ -303,7 +303,7 @@ namespace dae
 			}
 		}
 
-		void Subdivide(int nodeIdx)
+		inline void Subdivide(int nodeIdx)
 		{
 			BVHNode& node{ pBvhNodes[nodeIdx] };
 
@@ -312,10 +312,14 @@ namespace dae
 			// Determine split axis and position using SAH
 			int axis{ -1 };
 			float splitPos{ 0 };
+#ifdef USE_SAH
 			float cost{ FindBestSplitPlane(node, axis, splitPos) };
 			
 			const float noSplitCost{ CalculateNodeCost(node) };
 			if (cost >= noSplitCost) return;
+#else
+			FindBestSplitPlane(node, axis, splitPos);
+#endif
 
 			// in-place partition
 			int i{ static_cast<int>(node.firstIndice) };
@@ -367,7 +371,7 @@ namespace dae
 			Subdivide(rightChildIdx);
 		}
 
-		float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos) const
+		inline float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos) const
 		{
 			float bestCost{ FLT_MAX };
 			for (int curAxis{}; curAxis < 3; curAxis++)
@@ -400,12 +404,9 @@ namespace dae
 					int binIdx{ std::min(nrBins - 1, static_cast<int>((centroid[curAxis] - boundsMin) * scale)) };
 
 					bins[binIdx].indicesCount += 3;
-					float areaBeforeGrow{ bins[binIdx].bounds.GetArea() };
 					bins[binIdx].bounds.Grow(v0);
 					bins[binIdx].bounds.Grow(v1);
 					bins[binIdx].bounds.Grow(v2);
-					float area{ bins[binIdx].bounds.max.x };
-					int dada = 0;
 				}
 
 				float leftArea[nrBins - 1]{};
@@ -448,14 +449,14 @@ namespace dae
 			return bestCost;
 		}
 
-		float CalculateNodeCost(const BVHNode& node) const
+		inline float CalculateNodeCost(const BVHNode& node) const
 		{
 			const Vector3 boxSize{ node.aabbMax - node.aabbMin };
 			const float parentArea{ boxSize.x * boxSize.y + boxSize.y * boxSize.z + boxSize.z * boxSize.x };
 			return node.indicesCount * parentArea;
 		}
 
-		float EvaluateSAH(BVHNode& node, int axis, float pos) const
+		inline float EvaluateSAH(BVHNode& node, int axis, float pos) const
 		{
 			AABB leftBox{};
 			AABB rightBox{};

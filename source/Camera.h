@@ -6,6 +6,7 @@
 #include "Math.h"
 #include "Timer.h"
 #include <iostream>
+#include <algorithm>
 
 namespace dae
 {
@@ -85,16 +86,9 @@ namespace dae
 			const float fovDifference{ newFovAngle - fovAngle };
 
 			// Clamp the new fov angle and calculate the tangent
-			if (fovDifference > FLT_EPSILON || fovDifference < -FLT_EPSILON)
+			if (abs(newFovAngle) > FLT_EPSILON)
 			{
-				if (newFovAngle < minFov)
-				{
-					newFovAngle = minFov;
-				}
-				else if (newFovAngle > maxFov)
-				{
-					newFovAngle = maxFov;
-				}
+				newFovAngle = std::clamp(newFovAngle, minFov, maxFov);
 				SetFovAngle(newFovAngle);
 			}
 
@@ -113,6 +107,7 @@ namespace dae
 				direction.y -= mouseY * mouseMovementSpeed * deltaTime;
 				break;
 			}
+			totalPitch = std::clamp(totalPitch, -90.0f * TO_RADIANS, 90.0f * TO_RADIANS);
 
 			// Speed up all movement when the shift button is pressed
 			const float speedUpFactor{ 4.0f };
@@ -126,7 +121,6 @@ namespace dae
 
 			// Calculate the new forward vector with the new pitch and yaw
 			forward = rotationMatrix.TransformVector(Vector3::UnitZ);
-			forward.Normalize();
 		}
 
 		void SetFovAngle(float newFovAngle)
