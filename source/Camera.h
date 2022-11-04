@@ -36,7 +36,7 @@ namespace dae
 
 		Matrix CalculateCameraToWorld()
 		{
-			right = Vector3::Cross(Vector3::UnitY, forward);
+			right = Vector3::Cross(Vector3::UnitY, forward).Normalized();
 			up = Vector3::Cross(forward, right);
 
 			cameraToWorld = Matrix
@@ -107,7 +107,7 @@ namespace dae
 				direction.y -= mouseY * mouseMovementSpeed * deltaTime;
 				break;
 			}
-			totalPitch = std::clamp(totalPitch, -90.0f * TO_RADIANS, 90.0f * TO_RADIANS);
+			totalPitch = std::clamp(totalPitch, -89.0f * TO_RADIANS, 89.0f * TO_RADIANS);
 
 			// Speed up all movement when the shift button is pressed
 			const float speedUpFactor{ 4.0f };

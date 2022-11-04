@@ -5,7 +5,7 @@
 #include "Math.h"
 #include "vector"
 
-//#define USE_BVH
+#define USE_BVH
 
 namespace dae
 {
@@ -312,14 +312,11 @@ namespace dae
 			// Determine split axis and position using SAH
 			int axis{ -1 };
 			float splitPos{ 0 };
-#ifdef USE_SAH
+
 			float cost{ FindBestSplitPlane(node, axis, splitPos) };
 			
 			const float noSplitCost{ CalculateNodeCost(node) };
 			if (cost >= noSplitCost) return;
-#else
-			FindBestSplitPlane(node, axis, splitPos);
-#endif
 
 			// in-place partition
 			int i{ static_cast<int>(node.firstIndice) };
@@ -463,7 +460,7 @@ namespace dae
 			int leftCount{};
 			int rightCount{};
 
-			for (unsigned int i{}; i < node.indicesCount; ++i)
+			for (unsigned int i{}; i < node.indicesCount; i += 3)
 			{
 				const Vector3& v0{ transformedPositions[indices[node.firstIndice + i]] };
 				const Vector3& v1{ transformedPositions[indices[node.firstIndice + i + 1]] };
