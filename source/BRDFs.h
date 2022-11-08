@@ -35,7 +35,7 @@ namespace dae
 		static ColorRGB Phong(float ks, float exp, const Vector3& l, const Vector3& v, const Vector3& n)
 		{
 			const Vector3 reflectedLightVector{ Vector3::Reflect(l,n) };
-			const float reflectedViewDot{ std::max(Vector3::Dot(reflectedLightVector, v), 0.0f) };
+			const float reflectedViewDot{ Vector3::DotClamped(reflectedLightVector, v) };
 			const float phong{ ks * powf(reflectedViewDot, exp) };
 
 			return ColorRGB{ phong, phong, phong };
@@ -78,7 +78,7 @@ namespace dae
 		{
 			const float alpha{ Square(roughness) };
 			const float k{ Square(alpha + 1.0f) / 8.0f };
-			const float dot{ std::max(Vector3::Dot(n,v), 0.0f) };
+			const float dot{ Vector3::DotClamped(n,v) };
 			return dot / (dot * (1.0f-k) + k);
 		}
 

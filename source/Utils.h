@@ -11,7 +11,6 @@
 
 namespace dae
 {
-
 	namespace Utils
 	{
 		// Fast Sqrt	Source: https://geometrian.com/programming/tutorials/fastsqrt/index.php
@@ -204,9 +203,9 @@ namespace dae
 			// Set the hit record to the calculated information
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = sphere.materialIndex;
+			hitRecord.t = t;
 			hitRecord.origin = hitPoint;
 			hitRecord.normal = hitNormal.Normalized();
-			hitRecord.t = t;
 
 			return true;
 #endif
@@ -237,9 +236,9 @@ namespace dae
 			// Set the hit record to the calculated information
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = plane.materialIndex;
+			hitRecord.t = t;
 			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.normal = plane.normal;
-			hitRecord.t = t;
 
 			return true;
 		}
@@ -332,9 +331,9 @@ namespace dae
 
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = triangle.materialIndex;
+			hitRecord.t = t;
 			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.normal = triangle.normal;
-			hitRecord.t = t;
 
 			return true;
 #else
@@ -368,11 +367,11 @@ namespace dae
 			// If hit records needs to be ignored, just return true
 			if (ignoreHitRecord) return true;
 
-			hitRecord.normal = triangle.normal;
-			hitRecord.origin = ray.origin + ray.direction * t;
 			hitRecord.didHit = true;
 			hitRecord.materialIndex = triangle.materialIndex;
 			hitRecord.t = t;
+			hitRecord.origin = ray.origin + ray.direction * t;
+			hitRecord.normal = triangle.normal;
 
 			return true;
 #endif
@@ -391,25 +390,25 @@ namespace dae
 			const float tx1 = (minAABB.x - ray.origin.x) * ray.inversedDirection.x;
 			const float tx2 = (maxAABB.x - ray.origin.x) * ray.inversedDirection.x;
 
-			float tmin = std::min(tx1, tx2);
-			float tmax = std::max(tx1, tx2);
+			float tMin = std::min(tx1, tx2);
+			float tMax = std::max(tx1, tx2);
 
 			const float ty1 = (minAABB.y - ray.origin.y) * ray.inversedDirection.y;
 			const float ty2 = (maxAABB.y - ray.origin.y) * ray.inversedDirection.y;
 
-			tmin = std::max(tmin, std::min(ty1, ty2));
-			tmax = std::min(tmax, std::max(ty1, ty2));
+			tMin = std::max(tMin, std::min(ty1, ty2));
+			tMax = std::min(tMax, std::max(ty1, ty2));
 
 			const float tz1 = (minAABB.z - ray.origin.z) * ray.inversedDirection.z;
 			const float tz2 = (maxAABB.z - ray.origin.z) * ray.inversedDirection.z;
 
-			tmin = std::max(tmin, std::min(tz1, tz2));
-			tmax = std::min(tmax, std::max(tz1, tz2));
+			tMin = std::max(tMin, std::min(tz1, tz2));
+			tMax = std::min(tMax, std::max(tz1, tz2));
 
-			return tmax > 0 && tmax >= tmin;
+			return tMax > 0 && tMax >= tMin;
 		}
 
-		inline void IntersectBVH(const TriangleMesh& mesh, const Ray& ray, Triangle& sharedTriangle, HitRecord& hitRecord, bool& hasHit, HitRecord& curClosestHit, bool ignoreHitRecord, unsigned int bvhNodeIdx)
+		inline void IntersectBVH(const TriangleMesh& mesh, const Ray& ray, Triangle& sharedTriangle, HitRecord& hitRecord, bool& hasHit, HitRecord& curClosestHit, bool ignoreHitRecord, size_t bvhNodeIdx)
 		{
 			// Get the current node
 			BVHNode& node{ mesh.pBvhNodes[bvhNodeIdx] };
@@ -473,7 +472,7 @@ namespace dae
 			IntersectBVH(mesh, ray, tempTriangle, hitRecord, hasHit, tempHit, ignoreHitRecord, 0);
 #else
 			// For each triangle
-			for (int triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
+			for (size_t triangleIdx{}; triangleIdx < mesh.indices.size(); triangleIdx += 3)
 			{
 				// Set the position and normal of the current triangle to the triangle object
 				tempTriangle.v0 = mesh.transformedPositions[mesh.indices[triangleIdx]];

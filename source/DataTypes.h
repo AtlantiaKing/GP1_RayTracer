@@ -5,7 +5,7 @@
 #include "Math.h"
 #include "vector"
 
-#define USE_BVH
+//#define USE_BVH
 
 namespace dae
 {
@@ -61,9 +61,9 @@ namespace dae
 	{
 		Vector3 aabbMin{};
 		Vector3 aabbMax{};
-		unsigned int leftChild{};
-		unsigned int firstIndice{};
-		unsigned int indicesCount{};
+		size_t leftChild{};
+		size_t firstIndice{};
+		size_t indicesCount{};
 		bool IsLeaf() { return indicesCount > 0; };
 	};
 
@@ -178,9 +178,10 @@ namespace dae
 
 		void CalculateNormals()
 		{
-			normals.resize(indices.size() / 3);
+			normals.clear();
+			normals.reserve(indices.size() / 3);
 
-			for (int triangle{}; triangle < indices.size(); triangle += 3)
+			for (size_t triangle{}; triangle < indices.size(); triangle += 3)
 			{
 				Vector3& v0 = positions[indices[triangle]];
 				Vector3& v1 = positions[indices[triangle + 1]];
@@ -189,7 +190,7 @@ namespace dae
 				Vector3 edge0 = v1 - v0;
 				Vector3 edge1 = v2 - v0;
 
-				normals[triangle / 3] = Vector3::Cross(edge0, edge1).Normalized();
+				normals.emplace_back(Vector3::Cross(edge0, edge1).Normalized());
 			}
 		}
 
@@ -272,9 +273,10 @@ namespace dae
 			transformedMaxAABB = tMaxAABB;
 		}
 
-		inline void UpdateBVH()
+		void UpdateBVH()
 		{
-			if(!pBvhNodes) pBvhNodes = new BVHNode[indices.size()]{};
+			// The max amount of nodes needed is (nrTriangles * 2 - 1)
+			if(!pBvhNodes) pBvhNodes = new BVHNode[indices.size() / 3 * 2 - 1]{};
 
 			bvhNodesUsed = 0;
 
@@ -295,7 +297,7 @@ namespace dae
 			node.aabbMin = Vector3::One * FLT_MAX;
 			node.aabbMax = Vector3::One * FLT_MIN;
 
-			for (unsigned int i{ node.firstIndice }; i < node.firstIndice + node.indicesCount; ++i)
+			for (size_t i{ node.firstIndice }; i < node.firstIndice + node.indicesCount; ++i)
 			{
 				Vector3& curVertex{ transformedPositions[indices[i]] };
 				node.aabbMin = Vector3::Min(node.aabbMin, curVertex);
@@ -307,20 +309,21 @@ namespace dae
 		{
 			BVHNode& node{ pBvhNodes[nodeIdx] };
 
-			if (node.indicesCount <= 6) return;
+			const int maxNrTrianglesPerNode{ 2 };
+
+			if (node.indicesCount <= maxNrTrianglesPerNode * 3) return;
 
 			// Determine split axis and position using SAH
 			int axis{ -1 };
 			float splitPos{ 0 };
-
 			float cost{ FindBestSplitPlane(node, axis, splitPos) };
 			
 			const float noSplitCost{ CalculateNodeCost(node) };
 			if (cost >= noSplitCost) return;
 
 			// in-place partition
-			int i{ static_cast<int>(node.firstIndice) };
-			int j{ i + static_cast<int>(node.indicesCount) - 1 };
+			size_t i{ node.firstIndice };
+			size_t j{ i + node.indicesCount - 1 };
 			while (i <= j)
 			{
 				const Vector3 centroid{ (transformedPositions[indices[i]] + transformedPositions[indices[i + 1]] + transformedPositions[indices[i + 2]]) / 3.0f };
@@ -342,7 +345,7 @@ namespace dae
 			}
 
 			// abort split if one of the sides is empty
-			unsigned int leftCount{ i - node.firstIndice };
+			size_t leftCount{ i - node.firstIndice };
 			if (leftCount == 0 || leftCount == node.indicesCount)
 			{
 				return;
@@ -368,7 +371,7 @@ namespace dae
 			Subdivide(rightChildIdx);
 		}
 
-		inline float FindBestSplitPlane(BVHNode& node, int& axis, float& splitPos) const
+		inline float FindBestSplitPlane(const BVHNode& node, int& axis, float& splitPos) const
 		{
 			float bestCost{ FLT_MAX };
 			for (int curAxis{}; curAxis < 3; curAxis++)
@@ -470,14 +473,14 @@ namespace dae
 
 				if (centroid[axis] < pos)
 				{
-					leftCount++;
+					++leftCount;
 					leftBox.Grow(v0);
 					leftBox.Grow(v1);
 					leftBox.Grow(v2);
 				}
 				else
 				{
-					rightCount++;
+					++rightCount;
 					rightBox.Grow(v0);
 					rightBox.Grow(v1);
 					rightBox.Grow(v2);
