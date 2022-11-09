@@ -1,0 +1,7 @@
+bin/
+TempFiles/
+.vs/
+source/Resources/3dassignment.obj
+source/Resources/blokart.obj
+source/Resources/Bwoat.obj
+source/benchmark.txt
