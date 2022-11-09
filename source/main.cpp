@@ -45,7 +45,7 @@ int main(int argc, char* args[])
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
 
-	const auto pScene = new Scene_W4_ReferenceScene();
+	const auto pScene = new Scene_W4_OptionalScene();
 	pScene->Initialize();
 
 	// Lock cursor
@@ -54,6 +54,7 @@ int main(int argc, char* args[])
 	//Start loop
 	pTimer->Start();
 	float printTimer = 0.f;
+	bool isShowingCursor{ true };
 	bool isLooping = true;
 	bool takeScreenshot = false;
 	while (isLooping)
@@ -80,9 +81,6 @@ int main(int argc, char* args[])
 				case SDL_SCANCODE_F2:
 					pRenderer->ToggleShadows();
 					break;
-				case SDL_SCANCODE_LALT:
-					SDL_SetRelativeMouseMode(SDL_TRUE);
-					break;
 				case SDL_SCANCODE_F6:
 					pTimer->StartBenchmark();
 					break;
@@ -92,8 +90,18 @@ int main(int argc, char* args[])
 				switch (e.key.keysym.scancode)
 				{
 				case SDL_SCANCODE_LALT:
-					SDL_SetRelativeMouseMode(SDL_FALSE);
+				{
+					isShowingCursor = !isShowingCursor;
+					if (isShowingCursor)
+					{
+						SDL_SetRelativeMouseMode(SDL_TRUE);
+					}
+					else
+					{
+						SDL_SetRelativeMouseMode(SDL_FALSE);
+					}
 					break;
+				}
 				}
 				break;
 			}

@@ -497,4 +497,31 @@ namespace dae {
 		m_pMesh->RotateY(yawAngle);
 		m_pMesh->UpdateTransforms();
 	}
+
+	void Scene_W4_OptionalScene::Initialize()
+	{
+		sceneName = "Optional Scene";
+		m_Camera.origin = { -7.f, 2.0f, -14.0f };
+		m_Camera.totalYaw = 25 * TO_RADIANS;
+		m_Camera.totalPitch = 20 * TO_RADIANS;
+		m_Camera.SetFovAngle(45.0f);
+
+		const auto matLambert_White = AddMaterial(new Material_Lambert(colors::White, 1.f));
+
+		//Mesh
+		m_pMesh = AddTriangleMesh(TriangleCullMode::BackFaceCulling, matLambert_White);
+		Utils::ParseOBJ("Resources/3dassignment.obj", m_pMesh->positions, m_pMesh->normals, m_pMesh->indices);
+
+		m_pMesh->Scale({ 0.007f, 0.007f, 0.007f });
+		m_pMesh->RotateY(90.0f * TO_RADIANS);
+
+#ifndef USE_BVH
+		m_pMesh->UpdateAABB();
+#endif
+		m_pMesh->UpdateTransforms();
+
+		//Light
+		AddPointLight(Vector3{ -2.5f, 5.0f, -5.0f }, 70.f, ColorRGB{ 1.0f, 1.0, 0.7f }); // Frontlight left
+		AddPointLight(Vector3{ 3.0f, 5.0f, -5.0f }, 70.f, ColorRGB{ 0.7f, 0.7f, 1.0f }); // Frontlight left
+	}
 }

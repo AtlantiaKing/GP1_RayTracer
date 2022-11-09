@@ -73,15 +73,15 @@ namespace dae
 			Vector3 direction{};
 
 			// Calculate new position with keyboard inputs
-			direction += (pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_Z]) * forward * keyboardMovementSpeed * deltaTime;
-			direction -= pKeyboardState[SDL_SCANCODE_S] * forward * keyboardMovementSpeed * deltaTime;
-			direction -= (pKeyboardState[SDL_SCANCODE_Q] || pKeyboardState[SDL_SCANCODE_A]) * right * keyboardMovementSpeed * deltaTime;
-			direction += pKeyboardState[SDL_SCANCODE_D] * right * keyboardMovementSpeed * deltaTime;
+			direction += (pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_Z] || pKeyboardState[SDL_SCANCODE_UP]) * forward * keyboardMovementSpeed * deltaTime;
+			direction -= (pKeyboardState[SDL_SCANCODE_S] || pKeyboardState[SDL_SCANCODE_DOWN]) * forward * keyboardMovementSpeed * deltaTime;
+			direction -= (pKeyboardState[SDL_SCANCODE_Q] || pKeyboardState[SDL_SCANCODE_A] || pKeyboardState[SDL_SCANCODE_LEFT]) * right * keyboardMovementSpeed * deltaTime;
+			direction += (pKeyboardState[SDL_SCANCODE_D] || pKeyboardState[SDL_SCANCODE_RIGHT]) * right * keyboardMovementSpeed * deltaTime;
 
 			// Calculate new fov with keyboard inputs
 			float newFovAngle{ fovAngle };
-			newFovAngle += pKeyboardState[SDL_SCANCODE_LEFT] * fovChangeSpeed * deltaTime;
-			newFovAngle -= pKeyboardState[SDL_SCANCODE_RIGHT] * fovChangeSpeed * deltaTime;
+			newFovAngle += pKeyboardState[SDL_SCANCODE_P] * fovChangeSpeed * deltaTime;
+			newFovAngle -= pKeyboardState[SDL_SCANCODE_O] * fovChangeSpeed * deltaTime;
 
 			const float fovDifference{ newFovAngle - fovAngle };
 

@@ -5,7 +5,7 @@
 #include "Math.h"
 #include "DataTypes.h"
 
-//#define MAYA_IMPORT
+#define MAYA_IMPORT
 #define USE_MOLLERTRUMBORE
 //#define USE_ANALYTIC_SPHERE
 

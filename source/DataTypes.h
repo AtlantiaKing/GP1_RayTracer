@@ -5,7 +5,7 @@
 #include "Math.h"
 #include "vector"
 
-//#define USE_BVH
+#define USE_BVH
 
 namespace dae
 {
