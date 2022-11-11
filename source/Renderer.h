@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include "Vector3.h"
+#include "ColorRGB.h"
 
 struct SDL_Window;
 struct SDL_Surface;
@@ -28,7 +29,7 @@ namespace dae
 		void Render(Scene* pScene) const;
 
 		void RenderPixel(Scene* pScene, unsigned int pixelIndex, const Camera& camera, const std::vector<Light>& lights, const std::vector<Material*>& materials) const;
-
+		
 		bool SaveBufferToImage() const;
 
 		void CycleLightingMode();

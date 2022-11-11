@@ -33,7 +33,7 @@ int main(int argc, char* args[])
 	const uint32_t height = 480;
 
 	SDL_Window* pWindow = SDL_CreateWindow(
-		"RayTracer - De Keukelaere Sander",
+		"RayTracer - De Keukelaere Sander (2DAE15)",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		width, height, 0);
@@ -41,15 +41,14 @@ int main(int argc, char* args[])
 	if (!pWindow)
 		return 1;
 
+	std::cout << "Extra controls:\nAlt: Lock/Unlock cursor\nO/P: Decrease/Increase FOV\n";
+
 	//Initialize "framework"
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
 
-	const auto pScene = new Scene_W4_OptionalScene();
+	const auto pScene = new Scene_W4_ReferenceScene();
 	pScene->Initialize();
-
-	// Lock cursor
-	SDL_SetRelativeMouseMode(SDL_TRUE);
 
 	//Start loop
 	pTimer->Start();

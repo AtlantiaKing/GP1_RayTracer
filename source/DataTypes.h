@@ -5,7 +5,7 @@
 #include "Math.h"
 #include "vector"
 
-#define USE_BVH
+//#define USE_BVH
 
 namespace dae
 {
@@ -504,6 +504,7 @@ namespace dae
 		Vector3 direction{};
 		ColorRGB color{};
 		float intensity{};
+		float radius{};
 
 		LightType type{};
 	};

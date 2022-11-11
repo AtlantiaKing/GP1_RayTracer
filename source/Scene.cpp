@@ -6,8 +6,8 @@ namespace dae {
 
 #pragma region Base Scene
 	//Initialize Scene with Default Solid Color Material (RED)
-	Scene::Scene():
-		m_Materials({ new Material_SolidColor({1,0,0})})
+	Scene::Scene() :
+		m_Materials({ new Material_SolidColor({1,0,0}) })
 	{
 		m_SphereGeometries.reserve(32);
 		m_PlaneGeometries.reserve(32);
@@ -17,7 +17,7 @@ namespace dae {
 
 	Scene::~Scene()
 	{
-		for(auto& pMaterial : m_Materials)
+		for (auto& pMaterial : m_Materials)
 		{
 			delete pMaterial;
 			pMaterial = nullptr;
@@ -58,7 +58,7 @@ namespace dae {
 				}
 			}
 		}
-		
+
 		// For each triangle mesh
 		for (const TriangleMesh& triangleMesh : m_TriangleMeshGeometries)
 		{
@@ -169,12 +169,13 @@ namespace dae {
 		return &m_TriangleMeshGeometries.back();
 	}
 
-	Light* Scene::AddPointLight(const Vector3& origin, float intensity, const ColorRGB& color)
+	Light* Scene::AddPointLight(const Vector3& origin, float intensity, const ColorRGB& color, float lightRadius)
 	{
 		Light l;
 		l.origin = origin;
 		l.intensity = intensity;
 		l.color = color;
+		l.radius = lightRadius;
 		l.type = LightType::Point;
 
 		m_Lights.emplace_back(l);
@@ -299,7 +300,7 @@ namespace dae {
 		/*const auto matLambertPhong1{ AddMaterial(new Material_LambertPhong(colors::Blue, 0.5f, 0.5f, 3.0f)) };
 		const auto matLambertPhong2{ AddMaterial(new Material_LambertPhong(colors::Blue, 0.5f, 0.5f, 15.0f)) };
 		const auto matLambertPhong3{ AddMaterial(new Material_LambertPhong(colors::Blue, 0.5f, 0.5f, 30.0f)) };
-		
+
 		AddSphere(Vector3{ -1.75f, 1.0f, 0.0f }, 0.75f, matLambertPhong1);
 		AddSphere(Vector3{ -0.0f, 1.0f, 0.0f }, 0.75f, matLambertPhong2);
 		AddSphere(Vector3{ 1.75f, 1.0f, 0.0f }, 0.75f, matLambertPhong3);*/
@@ -315,7 +316,7 @@ namespace dae {
 		//Light
 		AddPointLight(Vector3{ 0.0f, 5.0f, 5.0f }, 50.f, ColorRGB{ 1.0f, 0.61f, 0.45f }); // Backlight
 		AddPointLight(Vector3{ -2.5f, 5.0f, -5.0f }, 70.f, ColorRGB{ 1.0f, 0.8f, 0.45f }); // Frontlight left
-		AddPointLight(Vector3{ 2.5f, 2.5f, -5.0f}, 50.f, ColorRGB{ 0.34f, 0.47f, 0.68f});
+		AddPointLight(Vector3{ 2.5f, 2.5f, -5.0f }, 50.f, ColorRGB{ 0.34f, 0.47f, 0.68f });
 	}
 
 	void Scene_W4_TestScene::Initialize()
@@ -522,6 +523,7 @@ namespace dae {
 
 		//Light
 		AddPointLight(Vector3{ -2.5f, 5.0f, -5.0f }, 70.f, ColorRGB{ 1.0f, 1.0, 0.7f }); // Frontlight left
-		AddPointLight(Vector3{ 3.0f, 5.0f, -5.0f }, 70.f, ColorRGB{ 0.7f, 0.7f, 1.0f }); // Frontlight left
+		AddPointLight(Vector3{ 3.0f, 5.0f, -5.0f }, 70.f, ColorRGB{ 0.7f, 0.7f, 1.0f }); // Frontlight right
+		AddPointLight(Vector3{ 0.0f, 11.0f, -5.0f }, 70.f, ColorRGB{ 0.7f, 0.7f, 1.0f }); // Frontlight up
 	}
 }

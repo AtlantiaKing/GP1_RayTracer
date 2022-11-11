@@ -17,6 +17,7 @@ using namespace dae;
 
 //#define ASYNC
 #define PARALLEL_FOR
+//#define USE_SOFT_SHADOWS
 
 Renderer::Renderer(SDL_Window* pWindow) :
 	m_pWindow(pWindow),
@@ -60,14 +61,14 @@ void Renderer::Render(Scene* pScene) const
 		}
 
 		asyncFutures.push_back(
-			std::async(std::launch::async, [=, this] 
-			{
+			std::async(std::launch::async, [=, this]
+				{
 					const unsigned int endPixelIdx{ curPixelIdx + taskSize };
 					for (unsigned int pixelIdx{ curPixelIdx }; pixelIdx < endPixelIdx; ++pixelIdx)
 					{
 						RenderPixel(pScene, pixelIdx, camera, lights, materials);
 					}
-			})
+				})
 		);
 
 		curPixelIdx += taskSize;
@@ -80,7 +81,7 @@ void Renderer::Render(Scene* pScene) const
 
 #elif defined(PARALLEL_FOR)
 	// Parallel For Logic
-	concurrency::parallel_for(0u, nrPixels, 
+	concurrency::parallel_for(0u, nrPixels,
 		[=, this](int i)
 		{
 			RenderPixel(pScene, i, camera, lights, materials);
@@ -101,8 +102,8 @@ void Renderer::Render(Scene* pScene) const
 void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Camera& camera, const std::vector<Light>& lights, const std::vector<Material*>& materials) const
 {
 	// Calculate the row and column from pixelIndex
-	const int px = pixelIndex % m_Width;
-	const int py = pixelIndex / m_Width;
+	const int px{ static_cast<int>(pixelIndex) % m_Width };
+	const int py{ static_cast<int>(pixelIndex) / m_Width };
 
 	// Calculate the raster cordinates in camera space
 	const float cx{ ((2.0f * (px + 0.5f) / m_Width - 1.0f) * m_AspectRatio) * camera.fovMultiplier };
@@ -140,38 +141,107 @@ void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Ca
 			// Calculate the distance between the point and the light and normalize the light direction
 			const float lightDistance{ lightDirection.Normalize() };
 
+
+#ifdef USE_SOFT_SHADOWS
+			// The amount of light that reaches a pixel
+			float lightAmount{ 1.0f };
+
+			// If shadows are not enabled, do nothing
 			if (m_AreShadowsEnabled)
 			{
-				// Create a ray from the point to the light position
+				// Find a perpendicular vector to the light direction
+				// https://math.stackexchange.com/questions/137362/how-to-find-perpendicular-vector-to-another-vector
+				Vector3 lightRadiusDirection{ lightDirection.z, lightDirection.z, -lightDirection.x - lightDirection.y };
+				lightRadiusDirection.Normalize();
+
+				// Define the size of the grid that will be checked
+				const int lightGridSize{ 5 };
+
+				// Find the X and Y directions of the grid (scaled to be able to scale them using an x/y index)
+				const Vector3 perpendicularLightDirectionX{ lightRadiusDirection * (light.radius / Square(lightDistance)) / (lightGridSize / 2) };
+				const Vector3 perpendicularLightDirectionY{ Vector3::Cross(lightDirection, perpendicularLightDirectionX) };
+
+				// Calculate the largest index in the grid
+				const int maxGridCellPosition{ lightGridSize / 2 };
+
+				// Create a ray from the point to the light grid
 				// Set the max of the ray to the distance between the light and the point; 
 				//		otherwise the ray will always hit something (e.g. a infinite plane)
 				Ray lightRay{ offsetPosition, lightDirection, 0.0001f, lightDistance };
 
-				// If there is shadow: Darken the pixel and continue on to the next pixel
+				// For each grid cell
+				for (int gridX{ -maxGridCellPosition }; gridX <= maxGridCellPosition; ++gridX)
+				{
+					for (int gridY{ -maxGridCellPosition }; gridY <= maxGridCellPosition; ++gridY)
+					{
+						// Calculate the direction from the camera to the grid
+						Vector3 subLightDirection{ lightDirection + perpendicularLightDirectionX * static_cast<float>(gridX) + perpendicularLightDirectionY * static_cast<float>(gridY) };
+						subLightDirection.Normalize();
+
+						lightRay.direction = subLightDirection;
+
+						// If there is shadow: Darken the pixel and continue on to the next pixel
+						if (pScene->DoesHit(lightRay))
+						{
+							lightAmount -= 1.0f / (lightGridSize * lightGridSize);
+						}
+					}
+				}
+
+				// If the amount of light is less then a certain threshold, there is a full shadow and it should continue to the next light
+				const float hardShadowThreshold{ 0.05f };
+				if (lightAmount < hardShadowThreshold)
+				{
+					continue;
+				}
+			}
+#else
+			// If shadows are not enabled, do nothing
+			if (m_AreShadowsEnabled)
+			{
+				// Create a ray from the point to the light position
+						// Set the max of the ray to the distance between the light and the point; 
+						//		otherwise the ray will always hit something (e.g. a infinite plane)
+				Ray lightRay{ offsetPosition, lightDirection, 0.0001f, lightDistance };
+
+				// If there is shadow: continue to the next light
 				if (pScene->DoesHit(lightRay))
 				{
 					continue;
 				}
 			}
+#endif
 
 			switch (m_CurrentLightingMode)
 			{
 			case LightingMode::ObservedArea:	// Only show Lambert Cosine Law 
 			{
 				const float lightNormalAngle{ Vector3::DotClamped(closestHit.normal, lightDirection) };
+#ifdef USE_SOFT_SHADOWS
+				finalColor += ColorRGB{ lightNormalAngle, lightNormalAngle, lightNormalAngle } *lightAmount;
+#else
 				finalColor += ColorRGB{ lightNormalAngle, lightNormalAngle, lightNormalAngle };
+#endif
 			}
-				break;
+			break;
 			case LightingMode::Radiance:
 			{
 				// Only show Radiance
+#ifdef USE_SOFT_SHADOWS
+				finalColor += LightUtils::GetRadiance(light, closestHit.origin) * lightAmount;
+#else
 				finalColor += LightUtils::GetRadiance(light, closestHit.origin);
+#endif
 			}
-				break;
+			break;
 			case LightingMode::BRDF:			// Only show BRDF of a material
 			{
 				const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
+#ifdef USE_SOFT_SHADOWS
+				finalColor += brdf * lightAmount;
+#else
 				finalColor += brdf;
+#endif
 			}
 			break;
 			case LightingMode::Combined:		// Show everything combined (default)
@@ -179,7 +249,11 @@ void dae::Renderer::RenderPixel(Scene* pScene, unsigned int pixelIndex, const Ca
 				const float lightNormalAngle{ Vector3::DotClamped(closestHit.normal, lightDirection) };
 				const ColorRGB radiance{ LightUtils::GetRadiance(light, closestHit.origin) };
 				const ColorRGB brdf{ materials[closestHit.materialIndex]->Shade(closestHit, lightDirection, -rayDirection) };
+#ifdef USE_SOFT_SHADOWS
+				finalColor += radiance * brdf * lightNormalAngle * lightAmount;
+#else
 				finalColor += radiance * brdf * lightNormalAngle;
+#endif
 			}
 			break;
 			}

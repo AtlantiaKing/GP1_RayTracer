@@ -60,7 +60,7 @@ namespace dae
 		Plane* AddPlane(const Vector3& origin, const Vector3& normal, unsigned char materialIndex = 0);
 		TriangleMesh* AddTriangleMesh(TriangleCullMode cullMode, unsigned char materialIndex = 0);
 
-		Light* AddPointLight(const Vector3& origin, float intensity, const ColorRGB& color);
+		Light* AddPointLight(const Vector3& origin, float intensity, const ColorRGB& color, float lightRadius = 1.5f);
 		Light* AddDirectionalLight(const Vector3& direction, float intensity, const ColorRGB& color);
 		unsigned char AddMaterial(Material* pMaterial);
 	};
